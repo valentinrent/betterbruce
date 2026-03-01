@@ -33,12 +33,14 @@ String scanChannels(SPIClass *SSPI, bool web) {
     String result = "{";
 
     uint8_t rpdValues[CHANNELS] = {0};
-    digitalWrite(bruceConfigPins.NRF24_bus.io0, LOW);
 
     for (int i = 0; i < CHANNELS; i++) {
+        // Select this channel
         NRFradio.setChannel(i);
+
+        // Listen for a little
         NRFradio.startListening();
-        delayMicroseconds(128);
+        delayMicroseconds(250); // Increased from 128us to guarantee PLL lock and RPD settling (Datasheet requires ~130us minimum)
         NRFradio.stopListening();
 
         int rpd = NRFradio.testRPD() ? 1 : 0;
@@ -46,23 +48,28 @@ String scanChannels(SPIClass *SSPI, bool web) {
         rpdValues[i] = channel[i];
     }
 
-    digitalWrite(bruceConfigPins.NRF24_bus.io0, HIGH);
-
     for (int i = 0; i < CHANNELS; i++) {
         int level = rpdValues[i];
         int x = i * _BW;
         int c = i;
 
-        tft.drawFastVLine(
-            x, tftHeight - (10 + level), level, (i % 2 == 0) ? bruceConfig.priColor : TFT_DARKGREY
-        ); // for level display
+        // Render solid spectrum bars instead of 1px ghost lines
+        tft.fillRect(
+            x, tftHeight - (10 + level), _BW - 1, level, (i % 2 == 0) ? bruceConfig.priColor : TFT_DARKGREY
+        );
 
-        tft.drawFastVLine(
-            x, 0, tftHeight - (9 + level), (i % 8) ? TFT_BLACK : RGB565(25, 25, 25)
-        );                                                    /// for clearing
-        tft.drawFastVLine(x, 0, level, bruceConfig.secColor); /// for top display
+        // Clear the space above the current level safely without leaving artifacts
+        tft.fillRect(
+            x, 0, _BW - 1, tftHeight - (9 + level), (i % 8) ? TFT_BLACK : RGB565(25, 25, 25)
+        );
+
+        // Draw the top cap indicator
+        tft.fillRect(x, 0, _BW - 1, level, bruceConfig.secColor);
+
         // show 5 channel gap only
-        if (c % 5 == 0 && c != 0) { tft.drawCentreString(String(c).c_str(), x, tftHeight / 2, 1); }
+        if (c % 5 == 0 && c != 0) {
+            tft.drawCentreString(String(c).c_str(), x + _BW / 2, tftHeight / 2, 1);
+        }
 
         if (web) {
             if (i > 0) result += ",";
@@ -97,7 +104,10 @@ void nrf_spectrum(SPIClass *SSPI) {
         for (uint8_t i = 0; i < 6; ++i) { NRFradio.openReadingPipe(i, noiseAddress[i]); }
         NRFradio.setDataRate(RF24_1MBPS);
 
-        while (!check(EscPress)) { scanChannels(SSPI); }
+        while (!check(EscPress)) {
+            scanChannels(SSPI);
+            vTaskDelay(pdMS_TO_TICKS(5)); // Prevent watchdog starvation and allow other tasks to process
+        }
         NRFradio.stopListening();
         powerDown(*SSPI);
         delay(250);
