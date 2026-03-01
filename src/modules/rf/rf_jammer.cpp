@@ -61,7 +61,7 @@ void RFJammer::run_full_jammer() {
             
             if (check(EscPress) || (currentTime - startTime > MAX_JAM_TIME_MS)) {
                 sendRF = false;
-                returnToMenu = true;
+                /* returnToMenu = true; (removed) */
                 break;
             }
         }
@@ -97,7 +97,7 @@ void RFJammer::run_itmt_jammer() {
                     
                     if (check(EscPress) || (currentTime - startTime > MAX_JAM_TIME_MS)) {
                         sendRF = false;
-                        returnToMenu = true;
+                        /* returnToMenu = true; (removed) */
                         break;
                     }
                 }

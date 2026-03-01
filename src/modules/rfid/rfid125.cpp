@@ -57,7 +57,7 @@ void RFID125::loop() {
     while (1) {
         if (check(EscPress)) {
             _stream->end();
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             break;
         }
 
@@ -171,7 +171,7 @@ void RFID125::display_banner() {
 
     tft.setTextSize(FP);
     padprintln("");
-    padprintln("Press [OK] to change mode.");
+    padprintln("Press [SEL] to change mode.");
     padprintln("");
     padprintln("");
 }

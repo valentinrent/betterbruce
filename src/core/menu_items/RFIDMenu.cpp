@@ -14,6 +14,12 @@
 #include "modules/rfid/emv_reader.hpp"
 #endif
 void RFIDMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options = {
 #if !defined(REMOVE_RFID_HW_INTERFACE)  // Remove Hardware interface menu due to lack of external GPIO
         {"Read tag",    [=]() { TagOMatic(); }                          },
@@ -62,19 +68,26 @@ void RFIDMenu::optionsMenu() {
 #endif
     else if (bruceConfigPins.rfidModule == PN532_SPI_MODULE) txt += " (PN532-SPI)";
     else if (bruceConfigPins.rfidModule == RC522_SPI_MODULE) txt += " (RC522-SPI)";
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str(), _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void RFIDMenu::configMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) return;
     options = {
 #if !defined(REMOVE_RFID_HW_INTERFACE)  // Remove Hardware interface menu due to lack of external GPIO
         {"RFID Module", setRFIDModuleMenu          },
 #endif
         {"Add MIF Key", addMifareKeyMenu           },
-        {"Back",        [this]() { optionsMenu(); }},
+        {"Back",        []() {}                    },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "RFID Config");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "RFID Config", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void RFIDMenu::drawIcon(float scale) {

@@ -1,57 +1,77 @@
 #include "RFMenu.h"
+#include <globals.h>
 #include "core/display.h"
 #include "core/settings.h"
 #include "core/utils.h"
 #include "modules/rf/record.h"
+#include "modules/rf/rf_analyzer.h"
 #include "modules/rf/rf_bruteforce.h"
 #include "modules/rf/rf_jammer.h"
-#include "modules/rf/rf_listen.h"
 #include "modules/rf/rf_scan.h"
 #include "modules/rf/rf_send.h"
 #include "modules/rf/rf_spectrum.h"
 #include "modules/rf/rf_waterfall.h"
 
 void RFMenu::optionsMenu() {
-    options = {
-        {"Scan/copy",       [=]() { RFScan(); }       },
-#if !defined(LITE_VERSION)
-        {"Record RAW",      rf_raw_record             }, // Pablo-Ortiz-Lopez
-        {"Custom SubGhz",   sendCustomRF              },
-#endif
-        {"Spectrum",        rf_spectrum               },
-#if !defined(LITE_VERSION)
-        {"RSSI Spectrum",   rf_CC1101_rssi            }, // @Pirata
-        {"SquareWave Spec", rf_SquareWave             }, // @Pirata
-        {"Spectogram",      rf_waterfall              }, // dev_eclipse
-#if defined(BUZZ_PIN) or defined(HAS_NS4168_SPKR) and defined(RF_LISTEN_H)
-        {"Listen",          rf_listen                 }, // dev_eclipse
-#endif
-        {"Bruteforce",      rf_bruteforce             }, // dev_eclipse
-        {"Jammer Itmt",     [=]() { RFJammer(false); }},
-#endif
-        {"Jammer Full",     [=]() { RFJammer(true); } },
-        {"Config",          [this]() { configMenu(); }},
-    };
-    addOptionToMainMenu();
+    int selected = 0;
+    returnToMenu = false;
 
-    delay(200);
-    String txt = "Radio Frequency";
-    if (bruceConfigPins.rfModule == CC1101_SPI_MODULE) txt += " (CC1101)"; // Indicates if CC1101 is connected
-    else txt += " Tx: " + String(bruceConfigPins.rfTx) + " Rx: " + String(bruceConfigPins.rfRx);
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
 
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+        options = {
+            {"Scan/Copy",       [=]() { RFScan(); }       },
+#if !defined(LITE_VERSION)
+            {"Rec RAW",      rf_raw_record             }, // Pablo-Ortiz-Lopez
+            {"Custom RF",   sendCustomRF              },
+#endif
+            {"Spectrum",        rf_spectrum               },
+#if !defined(LITE_VERSION)
+            {"RSSI Spec",   rf_CC1101_rssi            }, // @Pirata
+            {"SquareWave Spec", rf_SquareWave             }, // @Pirata
+            {"Spectogram",      rf_waterfall              }, // dev_eclipse
+            {"Analyzer",        rf_analyzer               },
+            {"Bruteforce",      rf_bruteforce             }, // dev_eclipse
+            {"Jammer Itmt",     [=]() { RFJammer(false); }},
+#endif
+            {"Jammer Full",     [=]() { RFJammer(true); } },
+            {"Config",          [this]() { configMenu(); }},
+        };
+        addOptionToMainMenu();
+
+        String txt = "RF";
+        if (bruceConfigPins.rfModule == CC1101_SPI_MODULE) txt += " (CC1101)"; // Indicates if CC1101 is connected
+        else txt += " Tx: " + String(bruceConfigPins.rfTx) + " Rx: " + String(bruceConfigPins.rfRx);
+
+        selected = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str(), selected);
+
+        if (selected == -1 || selected == options.size() - 1) { return; }
+    }
 }
 
 void RFMenu::configMenu() {
-    options = {
-        {"RF TX Pin", lambdaHelper(gsetRfTxPin, true)},
-        {"RF RX Pin", lambdaHelper(gsetRfRxPin, true)},
-        {"RF Module", setRFModuleMenu},
-        {"RF Frequency", setRFFreqMenu},
-        {"Back", [this]() { optionsMenu(); }},
-    };
+    int selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            // we don't reset returnToMenu here because we want it to cascade back up to optionsMenu
+            return;
+        }
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "RF Config");
+        options = {
+            {"RF TX Pin", lambdaHelper(gsetRfTxPin, true)},
+            {"RF RX Pin", lambdaHelper(gsetRfRxPin, true)},
+            {"RF Module", setRFModuleMenu},
+            {"RF Frequency", setRFFreqMenu},
+            {"Back", []() {}},
+        };
+
+        selected = loopOptions(options, MENU_TYPE_SUBMENU, "RF Config", selected);
+
+        if (selected == -1 || selected == options.size() - 1) { return; }
+    }
 }
 
 void RFMenu::drawIcon(float scale) {

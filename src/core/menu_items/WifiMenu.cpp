@@ -40,7 +40,13 @@
 bool showHiddenNetworks = false;
 
 void WifiMenu::optionsMenu() {
-    returnToMenu = false;
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+        returnToMenu = false;
     options.clear();
     if (isWebUIActive) {
         drawMainBorderWithTitle("WiFi", true);
@@ -64,7 +70,7 @@ void WifiMenu::optionsMenu() {
              }},
         };
     }
-    if (WiFi.getMode() != WIFI_MODE_NULL) { options.push_back({"Turn Off WiFi", wifiDisconnect}); }
+    if (WiFi.getMode() != WIFI_MODE_NULL) { options.push_back({"WiFi Off", wifiDisconnect}); }
     if (WiFi.getMode() == WIFI_MODE_STA || WiFi.getMode() == WIFI_MODE_APSTA) {
         options.push_back({"AP info", displayAPInfo});
     }
@@ -86,9 +92,10 @@ void WifiMenu::optionsMenu() {
                            std::vector<Option> snifferOptions;
                            snifferOptions.push_back({"Raw Sniffer", sniffer_setup});
                            snifferOptions.push_back({"Probe Sniffer", karma_setup});
-                           snifferOptions.push_back({"Back", [this]() { optionsMenu(); }});
+                           snifferOptions.push_back({"Back", []() {} });
 
-                           loopOptions(snifferOptions, MENU_TYPE_SUBMENU, "Sniffers");
+                           int _sniff_selected = loopOptions(snifferOptions, MENU_TYPE_SUBMENU, "Sniffers");
+                           if (_sniff_selected == -1 || _sniff_selected == snifferOptions.size() - 1) return;
                        }});
     options.push_back({"Scan Hosts", [=]() {
                            bool doScan = true;
@@ -107,20 +114,27 @@ void WifiMenu::optionsMenu() {
     options.push_back({"Wireguard", wg_setup});
     options.push_back({"Responder", responder});
     options.push_back({"Brucegotchi", brucegotchi_start});
-    options.push_back({"WiFi Pass Recovery", wifi_recover_menu});
+    options.push_back({"WiFi Recov", wifi_recover_menu});
 #endif
-    
+
     options.push_back({"Config", [this]() { configMenu(); }});
 
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "WiFi");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "WiFi", _loop_selected);
 
     options.clear();
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void WifiMenu::configMenu() {
-    std::vector<Option> wifiOptions;
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            return;
+        }
+        std::vector<Option> wifiOptions;
 
     wifiOptions.push_back({"Change MAC", wifiMACMenu});
     wifiOptions.push_back({"Add Evil Wifi", addEvilWifiMenu});
@@ -136,8 +150,9 @@ void WifiMenu::configMenu() {
                                evilOptions.push_back({"Rename /ssid", setEvilEndpointSsid});
                                evilOptions.push_back({"Allow /ssid access", setEvilAllowSetSsid});
                                evilOptions.push_back({"Display endpoints", setEvilAllowEndpointDisplay});
-                               evilOptions.push_back({"Back", [this]() { configMenu(); }});
-                               loopOptions(evilOptions, MENU_TYPE_SUBMENU, "Evil Wifi Settings");
+                               evilOptions.push_back({"Back", []() {} });
+                               int _evil_selected = loopOptions(evilOptions, MENU_TYPE_SUBMENU, "Evil Wifi Settings");
+                               if (_evil_selected == -1 || _evil_selected == evilOptions.size() - 1) return;
                            }});
 
     {
@@ -148,13 +163,15 @@ void WifiMenu::configMenu() {
         Option opt(hidden__wifi_option.c_str(), [this]() {
             showHiddenNetworks = !showHiddenNetworks;
             displayInfo(String("Hidden Networks:") + (showHiddenNetworks ? "ON" : "OFF"), true);
-            configMenu();
+            // removing configMenu(); here because it will re-loop automatically
         });
 
         wifiOptions.push_back(opt);
     }
-    wifiOptions.push_back({"Back", [this]() { optionsMenu(); }});
-    loopOptions(wifiOptions, MENU_TYPE_SUBMENU, "WiFi Config");
+    wifiOptions.push_back({"Back", []() {} });
+    _loop_selected = loopOptions(wifiOptions, MENU_TYPE_SUBMENU, "WiFi Config", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == wifiOptions.size() - 1) return;
+    }
 }
 
 void WifiMenu::drawIcon(float scale) {

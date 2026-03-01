@@ -26,7 +26,6 @@ MainMenu::MainMenu() {
         &loraMenu,
 #endif
         &othersMenu,
-        &clockMenu,
 #if !defined(LITE_VERSION)
         &connectMenu,
 #endif
@@ -79,17 +78,32 @@ void MainMenu::begin(void) {
 
 void MainMenu::hideAppsMenu() {
     auto items = this->getItems();
-RESTART: // using gotos to avoid stackoverflow after many choices
-    options.clear();
-    for (auto item : items) {
-        String label = item->getName();
-        std::vector<String> l = bruceConfig.disabledMenus;
-        bool enabled = find(l.begin(), l.end(), label) == l.end();
-        options.push_back({label, [this, label]() { bruceConfig.addDisabledMenu(label); }, enabled});
+    int _loop_selected = 0;
+    while(true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+        options.clear();
+        for (auto item : items) {
+            String label = item->getName();
+            std::vector<String> l = bruceConfig.disabledMenus;
+            bool enabled = find(l.begin(), l.end(), label) == l.end();
+            options.push_back({label, [this, label, enabled]() {
+                if (enabled) {
+                    bruceConfig.addDisabledMenu(label);
+                } else {
+                    auto it = find(bruceConfig.disabledMenus.begin(), bruceConfig.disabledMenus.end(), label);
+                    if (it != bruceConfig.disabledMenus.end()) {
+                        bruceConfig.disabledMenus.erase(it);
+                    }
+                }
+            }, enabled});
+        }
+        options.push_back({"Show All", [=]() { bruceConfig.disabledMenus.clear(); }, true});
+        addOptionToMainMenu();
+        _loop_selected = loopOptions(options, MENU_TYPE_REGULAR, "", _loop_selected);
+        bruceConfig.saveFile();
+        if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
     }
-    options.push_back({"Show All", [=]() { bruceConfig.disabledMenus.clear(); }, true});
-    addOptionToMainMenu();
-    loopOptions(options);
-    bruceConfig.saveFile();
-    if (!returnToMenu) goto RESTART;
 }

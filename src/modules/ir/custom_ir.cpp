@@ -222,7 +222,7 @@ void otherIRcodes() {
     String filepath;
     FS *fs = NULL;
 
-    returnToMenu = true; // make sure menu is redrawn when quitting in any point
+    /* returnToMenu = true; (removed) */ // make sure menu is redrawn when quitting in any point
 
     options = {
         {"Recent",   selectRecentIrMenu       },
@@ -639,7 +639,7 @@ bool chooseCmdIrFile(FS *fs, String filepath) {
     int total_codes = 0;
     File databaseFile;
 
-    returnToMenu = true;
+    /* returnToMenu = true; (removed) */
 
     databaseFile = fs->open(filepath, FILE_READ);
     drawMainBorder();

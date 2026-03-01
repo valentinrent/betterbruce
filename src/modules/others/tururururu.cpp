@@ -199,7 +199,7 @@ void shark_loop() {
         }
 
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             goto Exit;
         }
     }

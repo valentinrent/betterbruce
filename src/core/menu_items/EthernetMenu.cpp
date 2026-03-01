@@ -20,6 +20,13 @@ void EthernetMenu::start_ethernet() {
 }
 
 void EthernetMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+
     options = {
         {"Scan Hosts",
          [this]() {
@@ -55,7 +62,9 @@ void EthernetMenu::optionsMenu() {
 
     delay(200);
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Ethernet");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Ethernet", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void EthernetMenu::drawIcon(float scale) {

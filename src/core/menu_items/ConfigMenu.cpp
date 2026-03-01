@@ -1,3 +1,4 @@
+#include <globals.h>
 #include "ConfigMenu.h"
 #include "core/display.h"
 #include "core/i2c_finder.h"

@@ -62,8 +62,6 @@ void setDimmerTimeMenu();
 
 void setClock();
 
-void runClockLoop(bool showMenuHint = false);
-
 int gsetIrTxPin(bool set = false);
 
 void setIrTxRepeats();

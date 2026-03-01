@@ -6,6 +6,12 @@
 #include "core/wifi/webInterface.h"
 
 void FileMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options.clear();
     if (setupSdCard()) options.push_back({"SD Card", [=]() { loopSD(SD); }});
     options.push_back({"LittleFS", [=]() { loopSD(LittleFS); }});
@@ -16,7 +22,9 @@ void FileMenu::optionsMenu() {
 #endif
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Files");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Files", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 void FileMenu::drawIcon(float scale) {
     clearIconArea();

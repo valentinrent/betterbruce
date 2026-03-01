@@ -302,7 +302,7 @@ void RFScan::set_option(RFMenuOption option) {
 
         case CLOSE_MENU: break;
 
-        case MAIN_MENU: returnToMenu = true; return;
+        case MAIN_MENU: /* returnToMenu = true; (removed) */ return;
     }
 
     restartScan = true;

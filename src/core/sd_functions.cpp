@@ -849,14 +849,21 @@ String loopSD(FS &fs, bool filePicker, String allowed_ext, String rootPath) {
                     }
                     options.push_back({"Close Menu", [&]() { yield(); }});
                     options.push_back({"Main Menu", [&]() { exit = true; }});
-                    if (!filePicker) loopOptions(options);
-                    else {
+                    if (!filePicker) {
+                        loopOptions(options);
+                        tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
+                        reload = true;
+                        redraw = true;
+                    } else if (allowed_ext == "SUB") {
+                        delay(200);
+                        txSubFile(&fs, filepath);
+                        tft.fillScreen(bruceConfig.bgColor);
+                        tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
+                        redraw = true;
+                    } else {
                         result = filepath;
                         break;
                     }
-                    tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
-                    reload = true;
-                    redraw = true;
                 } else {
                 BACK_FOLDER:
                     if (Folder == "/") break;

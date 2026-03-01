@@ -45,7 +45,7 @@ bool Pn532ble::connect() {
 void Pn532ble::loop() {
     while (1) {
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             break;
         }
 

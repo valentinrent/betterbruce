@@ -74,7 +74,7 @@ void IrRead::setup() {
     setup_ir_pin(bruceConfigPins.irRx, INPUT_PULLUP);
     if (headless) return;
     // else
-    returnToMenu = true; // make sure menu is redrawn when quitting in any point
+    /* returnToMenu = true; (removed) */ // make sure menu is redrawn when quitting in any point
     std::vector<Option> quickRemoteOptions = {
         {"TV",
          [&]() {
@@ -119,7 +119,7 @@ void IrRead::setup() {
 void IrRead::loop() {
     while (1) {
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             button_pos = 0;
             quickloop = false;
 #ifdef USE_BOOST /// DISABLE 5V OUTPUT
@@ -176,7 +176,7 @@ void IrRead::display_btn_options() {
         padprintln("Press [PREV] to discard signal");
         padprintln("Press [NEXT] to save signal");
     }
-    if (signals_read > 0) { padprintln("Press [OK]   to save device"); }
+    if (signals_read > 0) { padprintln("Press [SEL]   to save device"); }
     padprintln("Press [ESC]  to exit");
 }
 

@@ -1,5 +1,6 @@
 #include "OthersMenu.h"
 
+#include <globals.h>
 #include "core/display.h"
 #include "core/utils.h"
 #include "modules/badusb_ble/ducky_typer.h"
@@ -12,6 +13,12 @@
 // Removed: #include "modules/others/timer.h"
 
 void OthersMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options = {
         {"QRCodes",      qrcode_menu                  },
         {"Megalodon",    shark_setup                  },
@@ -33,10 +40,15 @@ void OthersMenu::optionsMenu() {
     };
 
     addOptionToMainMenu();
-    loopOptions(options, MENU_TYPE_SUBMENU, "Others");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Others", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void OthersMenu::badUsbHidMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) return;
     options = {
 #ifndef LITE_VERSION
         {"BadUSB",       [=]() { ducky_setup(hid_usb, false); }   },
@@ -47,22 +59,29 @@ void OthersMenu::badUsbHidMenu() {
         {"USB Clicker",  clicker_setup                            },
 #endif
 
-        {"Back",         [this]() { optionsMenu(); }              },
+        {"Back",         []() {}                                  },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "BadUSB & HID");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "BadUSB & HID", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void OthersMenu::micMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) return;
     options = {
 #if defined(MIC_SPM1423) || defined(MIC_INMP441)
         {"Spectrum", mic_test                   },
         {"Record",   mic_record_app             },
 #endif
-        {"Back",     [this]() { optionsMenu(); }},
+        {"Back",     []() {}              },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Microphone");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Microphone", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void OthersMenu::drawIcon(float scale) {

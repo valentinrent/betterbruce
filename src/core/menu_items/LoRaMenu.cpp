@@ -5,6 +5,12 @@
 #include "modules/lora/LoRaRF.h"
 
 void LoRaMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options = {
         {"Chat",             []() { lorachat(); }      },
         {"Change username",  []() { changeusername(); }},
@@ -12,7 +18,9 @@ void LoRaMenu::optionsMenu() {
     };
     addOptionToMainMenu();
     String txt = "LoRa";
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str(), _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void LoRaMenu::drawIcon(float scale) {

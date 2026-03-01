@@ -160,7 +160,7 @@ void EspSerialCmd::displaySentError() {
 
 void EspSerialCmd::displaySentFooter() {
     padprintln("\n");
-    padprintln("Press [OK] to send another command");
+    padprintln("Press [SEL] to send another command");
     padprintln("");
     padprintln("Press [ESC] to leave");
 }

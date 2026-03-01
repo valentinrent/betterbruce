@@ -30,33 +30,67 @@ bool __attribute__((weak)) isCharging() { return false; }
 ** Function name: displayScrollingText
 ** Description:   Scroll large texts into screen
 ***************************************************************************************/
+/**
+ * @brief  Scrolls long text across the display using a memory sprite for pixel-perfect smooth scrolling
+ *         This prevents locking the UI rendering or causing artifact flickering.
+ *
+ * @param text   The full string to be displayed
+ * @param coord  Coordinates and styling bounds for where the scrolling box will render
+ */
 void displayScrollingText(const String &text, Opt_Coord &coord) {
     int len = text.length();
-    String displayText = text + "        "; // Add spaces for smooth looping
-    int scrollLen = len + 8;                // Full text plus space buffer
-    static int i = 0;
-    static long _lastmillis = 0;
-    tft.setTextColor(coord.fgcolor, coord.bgcolor);
-    if (len < coord.size) {
-        // Text fits within limit, no scrolling needed
+    if (len < coord.size) return; // Completely fits in bounds, no scroll needed
+
+    // Static variables preserve engine state between frame draws
+    static String last_text = "";
+    static int px_offset = 0;       // Current pixel displacement
+    static long _lastmillis = 0;    // Timestamp tracker for async delays
+
+    // Format a gap to clearly demarcate where the loop repeats
+    String displayText = text + "        " + text;
+    int char_w = LW * tft.getTextSize();
+    int char_h = LH * tft.getTextSize();
+    int draw_w = (coord.size - 1) * char_w;
+
+    // Reset parameters cleanly if we just started scrolling a completely new string
+    if (text != last_text) {
+        last_text = text;
+        px_offset = 0;
+        _lastmillis = millis() + 1000; // Pause for 1 second on start before moving
+
+        // Initial setup render before movement begins
+        sprite.createSprite(draw_w, char_h);
+        sprite.fillScreen(coord.bgcolor);
+        sprite.setTextColor(coord.fgcolor, coord.bgcolor);
+        sprite.setTextSize(tft.getTextSize());
+        sprite.drawString(displayText, 0, 0); // Render inside the hidden sprite canvas
+        sprite.pushSprite(coord.x, coord.y);  // Blast cached sprite onto the physical display
+        sprite.deleteSprite();
         return;
-    } else if (millis() > _lastmillis + 200) {
-        String scrollingPart =
-            displayText.substring(i, i + (coord.size - 1)); // Display charLimit characters at a time
-        tft.fillRect(
-            coord.x,
-            coord.y,
-            (coord.size - 1) * LW * tft.getTextSize(),
-            LH * tft.getTextSize(),
-            bruceConfig.bgColor
-        ); // Clear display area
-        tft.setCursor(coord.x, coord.y);
-        tft.setCursor(coord.x, coord.y);
-        tft.print(scrollingPart);
-        if (i >= scrollLen - coord.size) i = -1; // Loop back
-        _lastmillis = millis();
-        i++;
-        if (i == 1) _lastmillis = millis() + 1000;
+    }
+
+    // Step the animation asynchronously every 30ms (if time elapsed)
+    if (millis() > _lastmillis + 30) {
+        px_offset += 2; // Smooth shift by 2 pixels per frame
+
+        // When we've pushed completely past the main string + spacer, reset back to origin seamlessly
+        int max_scroll = (len + 8) * char_w;
+        if (px_offset >= max_scroll) {
+            px_offset = 0;
+            _lastmillis = millis() + 1000; // Hard pause for 1s on iteration restart
+        } else {
+            _lastmillis = millis();
+        }
+
+        sprite.createSprite(draw_w, char_h);
+        sprite.fillScreen(coord.bgcolor);
+        sprite.setTextColor(coord.fgcolor, coord.bgcolor);
+        sprite.setTextSize(tft.getTextSize());
+
+        // Shift drawing left by `px_offset` negative margin, giving the illusion of rightward scroll
+        sprite.drawString(displayText, -px_offset, 0);
+        sprite.pushSprite(coord.x, coord.y);
+        sprite.deleteSprite();
     }
 }
 
@@ -487,6 +521,10 @@ int loopOptions(
     if (index >= options.size()) index = 0;
     bool firstRender = true;
     drawMainBorder();
+
+    unsigned long last_index_change_time = millis();
+    bool underline_drawn = false;
+
     while (1) {
         // Check for shutdown before drawing menu to avoid drawing a black bar on the screen
         if (exit) break;
@@ -527,6 +565,14 @@ int loopOptions(
             }
             firstRender = false;
             redraw = false;
+
+            last_index_change_time = millis();
+            underline_drawn = false;
+        }
+
+        if (!redraw && menuType == MENU_TYPE_SUBMENU && !underline_drawn && (millis() - last_index_change_time > 700)) {
+            drawSubmenuUnderline(index, options, subText);
+            underline_drawn = true;
         }
 
         // handleSerialCommands(); // always use serial task for it
@@ -715,7 +761,7 @@ void drawSubmenu(int index, std::vector<Option> &options, const char *title) {
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
     tft.drawPixel(0, 0, 0);
-    tft.fillRect(6, 30, tftWidth - 12, 8 * FP, bruceConfig.bgColor);
+    tft.fillRect(6, 26, tftWidth - 12, 4 + 8 * FP, bruceConfig.bgColor); // Start at 26 to clear the 4px gap under the orange border (y=25)
     tft.drawString(title, 12, 30);
 
     // middle of the drawing area
@@ -729,35 +775,144 @@ void drawSubmenu(int index, std::vector<Option> &options, const char *title) {
 #if defined(HAS_TOUCH)
     tft.drawCentreString("/\\", tftWidth / 2, middle_up - (FM * LH + 6), 1);
 #endif
-    // Previous item
-    const char *firstOption =
-        index - 1 >= 0 ? options[index - 1].label.c_str() : options[menuSize - 1].label.c_str();
-    tft.setTextColor(bruceConfig.secColor);
-    tft.fillRect(6, middle_up, tftWidth - 12, 8 * FM, bruceConfig.bgColor);
-    tft.drawCentreString(firstOption, tftWidth / 2, middle_up, SMOOTH_FONT);
+    // Previous item (Calculated dynamically to wrap around looping edge cases flawlessly)
+    const char *firstOption = index - 1 >= 0 ? options[index - 1].label.c_str() : options[menuSize - 1].label.c_str();
 
-    // Selected item
+    // Scale font properly for selected item if label breaks horizontal boundaries
     int selectedTextSize = options[index].label.length() <= tftWidth / (LW * FG) - 1 ? FG : FM;
-    tft.setTextSize(selectedTextSize);
-    tft.setTextColor(bruceConfig.priColor);
-    tft.fillRect(6, middle - FG * LH / 2 - 1, tftWidth - 12, FG * LH + 5, bruceConfig.bgColor);
-    tft.drawCentreString(options[index].label, tftWidth / 2, middle - selectedTextSize * LH / 2, SMOOTH_FONT);
-    tft.drawFastHLine(
-        tftWidth / 2 - strlen(options[index].label.c_str()) * selectedTextSize * LW / 2,
-        middle + selectedTextSize * LH / 2 + 1,
-        strlen(options[index].label.c_str()) * selectedTextSize * LW,
-        bruceConfig.priColor
-    );
-    // Next Item
-    const char *thirdOption =
-        index + 1 < menuSize ? options[index + 1].label.c_str() : options[0].label.c_str();
-    tft.setTextSize(FM);
-    tft.setTextColor(bruceConfig.secColor);
-    tft.fillRect(6, middle_down, tftWidth - 12, 8 * FM, bruceConfig.bgColor);
-    tft.drawCentreString(thirdOption, tftWidth / 2, middle_down, SMOOTH_FONT);
 
-    tft.fillRect(tftWidth - 5, 0, 5, tftHeight, bruceConfig.bgColor);
-    tft.fillRect(tftWidth - 5, index * tftHeight / menuSize, 5, tftHeight / menuSize, bruceConfig.priColor);
+    // Next Item (Wrap forward around looping edge cases flawlessly)
+    const char *thirdOption = index + 1 < menuSize ? options[index + 1].label.c_str() : options[0].label.c_str();
+
+    // -------------------------------------------------------------
+    // SCROLL ANIMATION STATE TRACKING
+    // -------------------------------------------------------------
+    // Stores the index tracker globally to detect directional changes
+    static int last_index = -1;
+    static const char* last_title = nullptr;
+    int dir = 0; // Direction tracking: 1 for scrolling DOWN, -1 for UP, 0 for first render.
+
+    if (last_index != -1 && last_title == title && last_index != index) {
+        // Did we increment index, or loop backward from max to 0? => Direction 1 (Scrolling UI up visually)
+        if (index == last_index + 1 || (index == 0 && last_index == menuSize - 1)) dir = 1;
+        // Did we decrement index, or loop forward from 0 to max? => Direction -1 (Scrolling UI down visually)
+        else if (index == last_index - 1 || (index == menuSize - 1 && last_index == 0)) dir = -1;
+    }
+    last_index = index;
+    last_title = title;
+
+    // We use a 5-frame animation segment. If there's no movement direction, bypass directly to frame 5 (instant draw).
+    int max_frames = 5;
+    for (int frame = (dir != 0 ? 1 : max_frames); frame <= max_frames; frame++) {
+
+        // Cubic Ease-Out interpolation logic for buttery fluid velocity
+        float t = (float)frame / max_frames;
+        float u = 1.0f - t;
+        float ease_t = 1.0f - (u * u * u); // Eases deeply at the very end of transition
+
+        // Hard-set physical target placement markers on-screen (End Goal bounds)
+        int prev_target_x = tftWidth / 2 + 55; // Nested right margin
+        int prev_target_y = middle_up;         // Upper horizontal slot
+
+        int sel_target_x = tftWidth / 2 - 15;  // Indented left focus
+        int sel_target_y = middle - selectedTextSize * LH / 2; // Center stage height
+
+        int next_target_x = tftWidth / 2 + 55; // Nested right margin
+        int next_target_y = middle_down;       // Bottom horizontal slot
+
+        // Fallback variables tracking real-time coordinates generated in easing below
+        int prev_x = prev_target_x, prev_y = prev_target_y;
+        int sel_x  = sel_target_x,  sel_y  = sel_target_y;
+        int next_x = next_target_x, next_y = next_target_y;
+
+        // ANIMATING A DOWNSCROLL (Bottom Item -> Center | Center Item -> Top)
+        if (dir == 1 && frame < max_frames) {
+            // Previous item: Center Target => Sweeps diagonally up and right to Previous Slot
+            prev_x = sel_target_x + (prev_target_x - sel_target_x) * ease_t;
+            prev_y = sel_target_y + (prev_target_y - sel_target_y) * ease_t;
+
+            // Selected item: Next Target => Sweeps diagonally up and left to Selected Slot
+            sel_x = next_target_x + (sel_target_x - next_target_x) * ease_t;
+            sel_y = next_target_y + (sel_target_y - next_target_y) * ease_t;
+
+            // Next item: Emerges vertically out of off-screen darkness into Next Slot
+            next_x = next_target_x;
+            next_y = next_target_y + (middle_down - middle) * (1.0f - ease_t);
+
+        // ANIMATING AN UPSCROLL (Top Item -> Center | Center Item -> Bottom)
+        } else if (dir == -1 && frame < max_frames) {
+            // Previous item: Drops smoothly from above off-screen into Top Slot
+            prev_x = prev_target_x;
+            prev_y = prev_target_y - (middle - middle_up) * (1.0f - ease_t);
+
+            // Selected item: Previous Target => Sweeps diagonally down and left to Selected Slot
+            sel_x = prev_target_x + (sel_target_x - prev_target_x) * ease_t;
+            sel_y = prev_target_y + (sel_target_y - prev_target_y) * ease_t;
+
+            // Next item: Center Target => Sweeps diagonally down and right to Next Slot
+            next_x = sel_target_x + (next_target_x - sel_target_x) * ease_t;
+            next_y = sel_target_y + (next_target_y - sel_target_y) * ease_t;
+        }
+
+        // ============================================
+        // CLEARING BUFFER & BACKGROUND ERASURE
+        // ============================================
+        // Set an absolute graphical constraint clipping window. This physically prevents any pixels
+        // (like sweeping text animations) from rendering outside this box and corrupting the top status bar / icons!
+        int title_bottom = 30 + 8 * FP;
+        int max_y = middle_down + (FM * LH) + 20; // Expanded height boundary to prevent ghost font scraping
+#if defined(HAS_TOUCH)
+        if (max_y > tftHeight - 50) max_y = tftHeight - 50; // Keep off touch footer
+#else
+        if (max_y > tftHeight - 7) max_y = tftHeight - 7;
+#endif
+
+        // Start clearing directly below the orange border line (which sits at y=25).
+        // Wiping from y=26 fully eradicates the 4px artifact zones without breaking the main border.
+        tft.fillRect(6, 26, tftWidth - 12, max_y - 26, bruceConfig.bgColor);
+
+        // Apply hardware viewport clipping. Everything drawn below until resetViewport() is constrained between y=26 and max_y!
+        tft.native()->setViewport(6, 26, tftWidth - 12, max_y - 26, false);
+
+        // Previous item (smaller text, further right)
+        if (menuSize > 1) {
+            tft.setTextSize(FP);
+            tft.setTextColor(bruceConfig.secColor);
+            tft.drawCentreString(firstOption, prev_x, prev_y, SMOOTH_FONT);
+        }
+
+        // Selected item (further left)
+        tft.setTextSize(selectedTextSize);
+        tft.setTextColor(bruceConfig.priColor);
+        tft.drawCentreString(options[index].label, sel_x, sel_y, SMOOTH_FONT);
+
+        // Next Item (smaller text, further right)
+        if (menuSize > 1) {
+            tft.setTextSize(FP);
+            tft.setTextColor(bruceConfig.secColor);
+            tft.drawCentreString(thirdOption, next_x, next_y, SMOOTH_FONT);
+        }
+
+        // Lift the hardware clipping mask before drawing static borders and titles
+        tft.native()->resetViewport();
+
+        // Redraw Title Text cleanly
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        tft.drawString(title, 12, 30);
+
+        // Scrollbar drawn safely inside border limits
+        tft.fillRect(tftWidth - 4, 10, 2, tftHeight - 20, bruceConfig.bgColor);
+        tft.fillRect(tftWidth - 4, 10 + index * (tftHeight - 20) / menuSize, 2, (tftHeight - 20) / menuSize, bruceConfig.priColor);
+
+        // Ensure orange border wrap is fully intact
+        if (bruceConfig.theme.border) {
+            tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
+            tft.drawLine(5, 25, tftWidth - 6, 25, bruceConfig.priColor); // Fully restore top boundary bar
+        }
+
+        if (frame < max_frames) vTaskDelay(pdMS_TO_TICKS(25));
+    }
 
 #if defined(HAS_TOUCH)
     tft.drawCentreString("\\/", tftWidth / 2, middle_down + (FM * LH + 6), 1);
@@ -765,6 +920,37 @@ void drawSubmenu(int index, std::vector<Option> &options, const char *title) {
     tft.drawString("[ x ]", 7, 7, 1);
     TouchFooter();
 #endif
+}
+
+/***************************************************************************************
+** Function name: drawSubmenuUnderline
+** Description:   Draw the animated underline under the currently selected item.
+**                Triggers async after hovering on an item idly for >700ms.
+***************************************************************************************/
+void drawSubmenuUnderline(int index, std::vector<Option> &options, const char *title) {
+    if (options.empty() || index < 0 || index >= options.size()) return;
+
+    // Mimic the exact offset parameters to guarantee line placement directly underneath main font
+    int selectedTextSize = options[index].label.length() <= tftWidth / (LW * FG) - 1 ? FG : FM;
+    int middle = 25 /*status*/ + (tftHeight - 30 /*status + bottom margin*/) / 2;
+    int center_selected = tftWidth / 2 - 15;
+
+    // Scale length boundary depending on character size map dynamically
+    int full_width = strlen(options[index].label.c_str()) * selectedTextSize * LW + 4;
+
+    // 4-frame swipe extending line thickness equally outwards from the centerpoint marker
+    for (int frame = 1; frame <= 4; frame++) {
+        int current_width = (full_width * frame) / 4;
+        if (current_width > 0) {
+            tft.drawFastHLine(
+                center_selected - current_width / 2, // Starts offset negatively
+                middle + selectedTextSize * LH / 2 + 1, // Position exactly 1-pixel underneath word box floor
+                current_width,
+                bruceConfig.priColor
+            );
+        }
+        if (frame < 4) vTaskDelay(pdMS_TO_TICKS(35)); // Use vTaskDelay to not dog-leg the processor while blocking
+    }
 }
 
 void drawStatusBar() {

@@ -9,7 +9,7 @@ void sendCustomRF() {
     String filepath = "";
     struct RfCodes selected_code;
 
-    returnToMenu = true; // make sure menu is redrawn when quitting in any point
+    /* returnToMenu = true; (removed) */ // make sure menu is redrawn when quitting in any point
 
     options = {
         {"Recent",   [&]() { selected_code = selectRecentRfMenu(); }},
@@ -25,14 +25,7 @@ void sendCustomRF() {
         // no need to proceed, go back
     }
 
-    while (1) {
-        delay(200);
-        filepath = loopSD(*fs, true, "SUB", "/BruceRF");
-        if (filepath == "" || check(EscPress)) return; //  cancelled
-        // else transmit the file
-        txSubFile(fs, filepath);
-        delay(200);
-    }
+    loopSD(*fs, true, "SUB", "/BruceRF");
 }
 
 bool txSubFile(FS *fs, String filepath, bool hideDefaultUI) {

@@ -7,6 +7,13 @@
 
 void ScriptsMenu::optionsMenu() {
 #if !defined(LITE_VERSION) && !defined(DISABLE_INTERPRETER)
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+
     if (interpreter_state >= 0) {
         interpreter_state = 1;
         returnToMenu = true;
@@ -18,7 +25,9 @@ void ScriptsMenu::optionsMenu() {
     options.push_back({"Load...", run_bjs_script});
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Scripts");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Scripts", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 #endif
 }
 

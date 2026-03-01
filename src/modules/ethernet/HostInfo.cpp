@@ -114,7 +114,7 @@ void HostInfo::setup(const Host &host) {
         int port = portNumbers[i];
 
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             break;
         }
 

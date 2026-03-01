@@ -6,6 +6,12 @@
 #include "modules/NRF24/nrf_spectrum.h"
 
 void NRF24Menu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options.clear();
     options.push_back({"Information", nrf_info});
 
@@ -29,20 +35,25 @@ void NRF24Menu::optionsMenu() {
 
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "NRF24");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "NRF24", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void NRF24Menu::configMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) return;
     uint8_t opt = 0;
     int idx = 0;
     if (bruceConfigPins.NRF24_bus.mosi == (gpio_num_t)SDCARD_MOSI) idx = 1;
     options = {
         {"NRF24 (legacy)",     [&]() { opt = 1; }         },
         {"NRF24 (shared SPI)", [&]() { opt = 2; }         },
-        {"Back",               [this]() { optionsMenu(); }},
+        {"Back",               []() {}                    },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "RF Config", idx);
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "RF Config", idx);
     if (opt == 1) {
         bruceConfigPins.setNrf24Pins(
             {(gpio_num_t)NRF24_SCK_PIN,
@@ -81,6 +92,8 @@ void NRF24Menu::configMenu() {
         );
     }
 #endif
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void NRF24Menu::drawIcon(float scale) {

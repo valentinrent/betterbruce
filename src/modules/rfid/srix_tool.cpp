@@ -95,7 +95,7 @@ void SRIXTool::setup() {
 void SRIXTool::loop() {
     while (1) {
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             break;
         }
 
@@ -190,7 +190,7 @@ void SRIXTool::show_main_menu() {
     padprintln("");
 
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    padprintln("Press [OK] to open menu");
+    padprintln("Press [SEL] to open menu");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     _screen_drawn = true;
@@ -310,7 +310,7 @@ void SRIXTool::read_tag() {
     padprintln("");
 
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    padprintln("Press [OK] for Main Menu");
+    padprintln("Press [SEL] for Main Menu");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     _tag_read = true;
@@ -490,7 +490,7 @@ void SRIXTool::read_uid() {
     padprintln("");
 
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    padprintln("Press [OK] for Main Menu");
+    padprintln("Press [SEL] for Main Menu");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     _lastReadTime = millis();
@@ -828,7 +828,7 @@ void SRIXTool::load_file_data(FS *fs, String filepath) {
     tft.setTextSize(FP);
 
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    padprintln("Press [OK] to open menu");
+    padprintln("Press [SEL] to open menu");
     padprintln("Select 'Write tag' to write");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 

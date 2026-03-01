@@ -9,6 +9,13 @@
 #include <globals.h>
 
 void BleMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+
     options.clear();
 
     if (BLEConnected) {
@@ -40,16 +47,24 @@ void BleMenu::optionsMenu() {
     options.push_back({"Config", [this]() { configMenu(); }});
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Bluetooth");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "Bluetooth", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void BleMenu::configMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) return;
+
     options = {
         {"BLE Name", [this]() { setBleNameMenu(); }},
-        {"Back",     [this]() { optionsMenu(); }   },
+        {"Back",     []() {}   },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "BLE Config");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "BLE Config", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void BleMenu::drawIcon(float scale) {

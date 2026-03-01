@@ -21,7 +21,7 @@ Reset:
 
     for (;;) {
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             delete oneWire;
             break;
         }

@@ -9,7 +9,6 @@
 #include "startup_app.h"
 
 #include "core/menu_items/ScriptsMenu.h"
-#include "core/settings.h" // clock
 #include "core/wifi/webInterface.h"
 #include "core/wifi/wifi_common.h"
 #include "modules/bjs_interpreter/interpreter.h"
@@ -32,7 +31,6 @@ StartupApp::StartupApp() {
     _startupApps["PN532 BLE"] = []() { Pn532ble(); };
     _startupApps["PN532 UART"] = []() { PN532KillerTools(); };
 #endif
-    _startupApps["Clock"] = []() { runClockLoop(); };
     _startupApps["Custom SubGHz"] = []() { sendCustomRF(); };
 #if defined(SOC_USB_OTG_SUPPORTED)
     _startupApps["Mass Storage"] = []() { MassStorage(); };

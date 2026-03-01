@@ -182,6 +182,7 @@ Opt_Coord drawOptions(
 );
 
 void drawSubmenu(int index, std::vector<Option> &options, const char *title);
+void drawSubmenuUnderline(int index, std::vector<Option> &options, const char *title);
 
 void drawStatusBar();
 void drawMainBorder(bool clear = true);

@@ -67,7 +67,7 @@ void TagOMatic::setup() {
 void TagOMatic::loop() {
     while (1) {
         if (check(EscPress)) {
-            returnToMenu = true;
+            /* returnToMenu = true; (removed) */
             break;
         }
 
@@ -167,7 +167,7 @@ void TagOMatic::display_banner() {
     tft.setTextSize(FP);
     padprintln("");
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    padprintln("Press [OK] to change mode.");
+    padprintln("Press [SEL] to change mode.");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     padprintln("");
 }

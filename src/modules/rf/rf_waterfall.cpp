@@ -191,7 +191,7 @@ void rf_waterfall_run() {
 
         tft.setCursor(3, 20);
         tft.setTextColor(TFT_DARKCYAN);
-        tft.print("[OK] Item [PREV/NEXT] Value ");
+        tft.print("[SEL] Item [PREV/NEXT] Value ");
 
         if (selected_item == 2) {
             tft.setTextColor(TFT_RED);
@@ -207,7 +207,7 @@ void rf_waterfall_run() {
         if (current_line >= screen_height) current_line = display_top;
     }
 
-    returnToMenu = true;
+    /* returnToMenu = true; (removed) */
     deinitRfModule();
     delay(10);
 }

@@ -4,6 +4,13 @@
 #include "modules/fm/fm.h"
 
 void FMMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
+
     options = {
 #if !defined(LITE_VERSION) and defined(FM_SI4713)
         // #if defined(FM_SI4713)
@@ -16,7 +23,9 @@ void FMMenu::optionsMenu() {
     };
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "FM");
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, "FM", _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void FMMenu::drawIcon(float scale) {

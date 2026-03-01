@@ -46,13 +46,13 @@ void rf_raw_record_draw(RawRecordingStatus status) {
         // The frequency scan function calls the animation
     } else if (!status.recordingStarted) {
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-        tft.print("Waiting for signal...");
+        tft.print("Press [SEL] to start ");
         sinewave_animation();
     } else if (status.recordingFinished) {
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
         tft.print("Recording finished.");
         tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-        tft.println("   Press [OK] to save   ");
+        tft.println("   Press [SEL] to save  ");
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     } else if (status.latestRssi < 0) {
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
@@ -60,7 +60,7 @@ void rf_raw_record_draw(RawRecordingStatus status) {
         tft.print(status.frequency);
         tft.print(" MHz");
         tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-        tft.println("   Press [OK] to stop ");
+        tft.println("   Press [SEL] to stop");
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
         // Calculate bar dimensions
         int centerY = (TFT_WIDTH / 2) + 20;      // Center axis for the bars
@@ -172,6 +172,23 @@ void rf_raw_record_create(RawRecording &recorded, bool &returnToMenu) {
     tft.fillRect(10, 30, tftWidth - 20, tftHeight - 40, bruceConfig.bgColor);
     rf_raw_record_draw(status);
 
+    while (!status.recordingStarted) {
+        if (check(SelPress)) {
+            status.recordingStarted = true;
+            status.firstSignalTime = millis();
+            tft.drawPixel(0, 0, 0);
+            tft.fillRect(10, 30, tftWidth - 20, tftHeight - 40, bruceConfig.bgColor);
+            break;
+        }
+        if (check(EscPress)) {
+            returnToMenu = true;
+            deinitRfModule();
+            return;
+        }
+        rf_raw_record_draw(status);
+        delay(10);
+    }
+
     // Start recording
     delay(200);
     rmt_channel_handle_t rx_ch = NULL;
@@ -223,12 +240,6 @@ void rf_raw_record_create(RawRecording &recorded, bool &returnToMenu) {
                     unsigned long signalDurationMs = signalDuration / RMT_1MS_TICKS;
                     uint16_t gap = (uint16_t)(receivedTime - status.lastSignalTime - signalDurationMs - 5);
                     recorded.gaps.push_back(gap);
-                } else {
-                    status.firstSignalTime = receivedTime;
-                    status.recordingStarted = true;
-                    // Erase sinewave animation
-                    tft.drawPixel(0, 0, 0);
-                    tft.fillRect(10, 30, tftWidth - 20, tftHeight - 40, bruceConfig.bgColor);
                 }
                 status.lastSignalTime = receivedTime;
             }

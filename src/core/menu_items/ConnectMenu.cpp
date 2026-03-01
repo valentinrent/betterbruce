@@ -7,6 +7,12 @@
 #include "core/wifi/wifi_common.h"
 
 void ConnectMenu::optionsMenu() {
+    int _loop_selected = 0;
+    while (true) {
+        if (returnToMenu) {
+            returnToMenu = false;
+            return;
+        }
     options = {
 #ifndef LITE_VERSION
         {"Send File", [=]() { FileSharing().sendFile(); }        },
@@ -18,7 +24,9 @@ void ConnectMenu::optionsMenu() {
     };
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, getName().c_str());
+    _loop_selected = loopOptions(options, MENU_TYPE_SUBMENU, getName().c_str(), _loop_selected);
+    if (_loop_selected == -1 || _loop_selected == options.size() - 1) return;
+    }
 }
 
 void ConnectMenu::drawIcon(float scale) {

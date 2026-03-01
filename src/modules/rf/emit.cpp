@@ -24,7 +24,7 @@ void rf_raw_emit_draw(void *parameter) {
     tft.print(frequency);
     tft.print(" MHz");
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
-    tft.println("   Press [OK] to stop ");
+    tft.println("   Press [SEL] to stop ");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     while (1) {

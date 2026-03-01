@@ -7,6 +7,7 @@
  */
 
 #include "chameleon.h"
+#include <globals.h>
 #include "core/display.h"
 #include "core/mykeyboard.h"
 
@@ -212,7 +213,7 @@ void Chameleon::displayBanner() {
 
     tft.setTextSize(FP);
     padprintln("");
-    padprintln("Press [OK] to change mode.");
+    padprintln("Press [SEL] to change mode.");
     padprintln("");
 }
 
@@ -291,7 +292,7 @@ void Chameleon::factoryReset() {
     }
 
     delayWithReturn(500);
-    returnToMenu = true;
+    /* returnToMenu = true; (removed) */
 }
 
 // LF Methods
