@@ -62,8 +62,10 @@ void MassStorage::setupUsbCallback() {
     uint32_t secSize = SD.sectorSize();
     uint32_t numSectors = SD.numSectors();
 
-    msc.vendorID("ESP32");
-    msc.productID("BRUCE");
+    // Apple MacOS strictly expects standard SCSI Inquiry string lengths:
+    // Vendor ID must be 8 characters, Product ID must be 16 characters.
+    msc.vendorID("LILYGO  ");
+    msc.productID("BRUCE MASS STRG ");
     msc.productRevision("1.0");
 
     msc.onRead(usbReadCallback);
@@ -125,7 +127,9 @@ int32_t usbReadCallback(uint32_t lba, uint32_t offset, void *buffer, uint32_t bu
 bool usbStartStopCallback(uint8_t power_condition, bool start, bool load_eject) {
     if (!start && load_eject) {
         MassStorage::setShouldStop(true);
-        return false;
+        // Mac OS specifically requires a success response (true) here to properly finalize the SCSI Eject process.
+        // Returning 'false' causes MacOS to throw a "Disk Not Ejected Properly" error or reject mounting.
+        return true;
     }
 
     return true;
