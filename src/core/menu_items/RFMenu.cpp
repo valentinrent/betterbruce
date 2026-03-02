@@ -6,6 +6,7 @@
 #include "modules/rf/rf_bruteforce.h"
 #include "modules/rf/rf_jammer.h"
 #include "modules/rf/rf_listen.h"
+#include "modules/rf/rf_analyzer.h"
 #include "modules/rf/rf_scan.h"
 #include "modules/rf/rf_send.h"
 #include "modules/rf/rf_spectrum.h"
@@ -23,6 +24,7 @@ void RFMenu::optionsMenu() {
         {"RSSI Spectrum",   rf_CC1101_rssi            }, // @Pirata
         {"SquareWave Spec", rf_SquareWave             }, // @Pirata
         {"Spectogram",      rf_waterfall              }, // dev_eclipse
+        {"Analyzer",        rf_analyzer               },
 #if defined(BUZZ_PIN) or defined(HAS_NS4168_SPKR) and defined(RF_LISTEN_H)
         {"Listen",          rf_listen                 }, // dev_eclipse
 #endif
