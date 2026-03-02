@@ -12,7 +12,7 @@ struct FileItem: Identifiable, Hashable {
 
 class FileManagerModel: ObservableObject {
     @Published var files: [FileItem] = []
-    @Published var currentPath: String = "/sd/"
+    @Published var currentPath: String = "/"
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
 
@@ -124,10 +124,16 @@ class FileManagerModel: ObservableObject {
 
     func navigateUp() {
         var parts = currentPath.split(separator: "/").map(String.init).filter { !$0.isEmpty }
-        guard parts.count > 1 else {
-            loadDirectory(path: "/") // root
+        // If we are already at root ("/") or a pseudo-root ("/littlefs"), we can't go up further in terms of file system roots.
+        if parts.isEmpty {
+            return
+        } else if parts.count == 1 {
+            // e.g. /config/ -> /
+            // e.g. /littlefs/ -> /
+            loadDirectory(path: "/")
             return
         }
+
         parts.removeLast()
         let newPath = "/" + parts.joined(separator: "/") + "/"
         loadDirectory(path: newPath)

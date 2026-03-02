@@ -13,7 +13,7 @@ uint32_t listCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs) || !(*fs).exists(filepath)) return false;
+    if (!getFsStorageFromPath(fs, filepath) || !(*fs).exists(filepath)) return false;
 
     File root = fs->open(filepath);
 
@@ -79,7 +79,7 @@ uint32_t md5Callback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs) || !(*fs).exists(filepath)) return false;
+    if (!getFsStorageFromPath(fs, filepath) || !(*fs).exists(filepath)) return false;
 
     serialDevice->println(md5File(*fs, filepath));
     return true;
@@ -92,12 +92,10 @@ uint32_t crc32Callback(cmd *c) {
     String filepath = arg.getValue();
     filepath.trim();
 
-    if (filepath.length() == 0) return false;
-
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs) || !(*fs).exists(filepath)) return false;
+    if (!getFsStorageFromPath(fs, filepath) || !(*fs).exists(filepath)) return false;
 
     serialDevice->println(crc32File(*fs, filepath));
     return true;
@@ -115,7 +113,7 @@ uint32_t removeCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs)) return false;
+    if (!getFsStorageFromPath(fs, filepath)) return false;
     if (!(*fs).exists(filepath)) {
         serialDevice->println("File does not exist");
         return false;
@@ -133,33 +131,48 @@ uint32_t removeCallback(cmd *c) {
 uint32_t writeCallback(cmd *c) {
     Command cmd(c);
 
-    Argument arg = cmd.getArgument("filepath");
-    Argument sizeArg = cmd.getArgument("size");
-    String filepath = arg.getValue();
-    String sizeStr = arg.getValue();
+    Argument arg1 = cmd.getArgument("filepath");
+    String filepath = arg1.getValue();
     filepath.trim();
+    Argument arg2 = cmd.getArgument("sizeStr");
+    String sizeStr = arg2.getValue();
     int fileSize = sizeStr.toInt();
-
-    if (filepath.length() == 0) return false;
 
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
-    if (fileSize < SAFE_STACK_BUFFER_SIZE) fileSize = SAFE_STACK_BUFFER_SIZE;
-
     FS *fs;
-    if (!getFsStorage(fs)) return false;
+    bool explicitFS = false;
+    if (filepath.startsWith("/sd/")) {
+        if (!setupSdCard()) return false;
+        fs = &SD;
+        filepath = filepath.substring(3);
+        explicitFS = true;
+    } else if (filepath.startsWith("/littlefs/")) {
+        fs = &LittleFS;
+        filepath = filepath.substring(9);
+        explicitFS = true;
+    } else {
+        if (!getFsStorage(fs)) return false;
+    }
 
-    char *txt = _readFileFromSerial(fileSize + 2);
-    if (strlen(txt) == 0) return false;
+    if (fileSize <= 0) {
+        serialDevice->println("File size must be > 0");
+        return false;
+    }
+
+    size_t outSize = 0;
+    uint8_t *txt = _readBytesFromSerial(fileSize, &outSize);
+    if (!txt || outSize == 0) return false;
 
     File f = fs->open(filepath, FILE_WRITE, true);
     if (!f) return false;
 
-    f.write((const uint8_t *)txt, strlen(txt));
+    f.write(txt, outSize);
     f.close();
-    free(txt);
 
-    serialDevice->println("File written: " + filepath);
+    serialDevice->printf("Done! (received %d b)\n", outSize);
+    if (psramFound()) { free(txt); } else { free(txt); }
+
     return true;
 }
 #endif
@@ -178,14 +191,23 @@ uint32_t renameCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
     if (!newName.startsWith("/")) newName = "/" + newName;
 
-    FS *fs;
-    if (!getFsStorage(fs)) return false;
-    if (!(*fs).exists(filepath)) {
+    FS *fsOrig;
+    if (!getFsStorageFromPath(fsOrig, filepath)) return false;
+
+    FS *fsDest;
+    if (!getFsStorageFromPath(fsDest, newName)) return false;
+
+    if (fsOrig != fsDest) {
+        serialDevice->println("Cannot rename across file systems");
+        return false;
+    }
+
+    if (!(*fsOrig).exists(filepath)) {
         serialDevice->println("File does not exist");
         return false;
     }
 
-    if ((*fs).rename(filepath, newName)) {
+    if ((*fsOrig).rename(filepath, newName)) {
         serialDevice->println("File renamed to '" + newName + "'");
         return true;
     }
@@ -242,7 +264,7 @@ uint32_t mkdirCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs)) return false;
+    if (!getFsStorageFromPath(fs, filepath)) return false;
     if ((*fs).exists(filepath)) {
         serialDevice->println("Directory already exists");
         return false;
@@ -269,7 +291,7 @@ uint32_t rmdirCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs)) return false;
+    if (!getFsStorageFromPath(fs, filepath)) return false;
     if (!(*fs).exists(filepath)) {
         serialDevice->println("Directory does not exist");
         return false;
@@ -296,7 +318,7 @@ uint32_t statCallback(cmd *c) {
     if (!filepath.startsWith("/")) filepath = "/" + filepath;
 
     FS *fs;
-    if (!getFsStorage(fs) || !(*fs).exists(filepath)) return false;
+    if (!getFsStorageFromPath(fs, filepath) || !(*fs).exists(filepath)) return false;
 
     File file = fs->open(filepath);
     if (!file) return false;
@@ -321,21 +343,15 @@ uint32_t statCallback(cmd *c) {
 uint32_t freeStorageCallback(cmd *c) {
     Command cmd(c);
     Argument arg = cmd.getArgument("storage_type");
+    String storageType = arg.getValue();
 
-    if (arg.getValue() == "sd") {
-        if (setupSdCard()) {
-            uint64_t totalBytes = SD.totalBytes();
-            uint64_t usedBytes = SD.usedBytes();
-            uint64_t freeBytes = totalBytes - usedBytes;
-
-            serialDevice->printf("SD Total space: %llu Bytes\n", totalBytes);
-            serialDevice->printf("SD Used space: %llu Bytes\n", usedBytes);
-            serialDevice->printf("SD Free space: %llu Bytes\n", freeBytes);
-        } else {
+    FS *fs;
+    String mountName = "";
+    if (storageType == "sd") {
+        if (!setupSdCard()) {
             serialDevice->println("No SD card installed");
+            return false;
         }
-    } else if (arg.getValue() == "littlefs") {
-
         uint64_t totalBytes = LittleFS.totalBytes();
         uint64_t usedBytes = LittleFS.usedBytes();
         uint64_t freeBytes = totalBytes - usedBytes;

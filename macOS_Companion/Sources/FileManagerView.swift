@@ -90,7 +90,7 @@ struct FileManagerView: View {
             }
         }
         .onAppear {
-            model.loadDirectory(path: "/sd/")
+            model.loadDirectory(path: "/")
         }
     }
 }

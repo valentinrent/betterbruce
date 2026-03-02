@@ -24,6 +24,25 @@ public:
 
     virtual int available() = 0;
     virtual String readStringUntil(char terminator) = 0;
+
+    virtual size_t readBytes(char *buffer, size_t length) {
+        size_t count = 0;
+        unsigned long start = millis();
+        while (count < length && (millis() - start < 1000)) {
+            if (available()) {
+                String s = readStringUntil('\n');
+                size_t cpy = s.length() < (length - count) ? s.length() : (length - count);
+                memcpy(buffer + count, s.c_str(), cpy);
+                count += cpy;
+                buffer[count++] = '\n';
+                start = millis();
+            } else {
+                delay(2);
+            }
+        }
+        return count;
+    }
+
     virtual ~SerialDevice() = default;
 };
 

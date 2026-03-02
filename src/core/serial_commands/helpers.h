@@ -7,7 +7,11 @@
 #include <PSRamFS.h>
 
 bool _setupPsramFs();
-char *_readFileFromSerial(size_t fileSizeChar = SAFE_STACK_BUFFER_SIZE);
+char *_readFileFromSerial(size_t fileSizeChar = 1024); // SAFE_STACK_BUFFER_SIZE
+uint8_t *_readBytesFromSerial(size_t fileSize, size_t *outSize);
+
+class FS;
+bool getFsStorageFromPath(FS *&fs, String &filepath);
 
 #endif
 #endif

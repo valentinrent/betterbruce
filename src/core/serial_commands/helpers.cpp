@@ -63,4 +63,54 @@ char *_readFileFromSerial(size_t fileSizeChar) {
     buf[bufSize] = '\0';
     return buf;
 }
+
+uint8_t *_readBytesFromSerial(size_t fileSize, size_t *outSize) {
+    uint8_t *buf = psramFound() ? (uint8_t *)ps_malloc(fileSize) : (uint8_t *)malloc(fileSize);
+    if (!buf) {
+        serialDevice->printf("Could not allocate %d bytes for upload\n", fileSize);
+        *outSize = 0;
+        return NULL;
+    }
+
+    size_t bytesRead = 0;
+    unsigned long lastData = millis();
+    serialDevice->printf("Ready to receive %d bytes...\n", fileSize);
+
+    while (bytesRead < fileSize) {
+        if (!serialDevice->available()) {
+            if (millis() - lastData > 5000) break; // Timeout after 5s of inactivity
+            delay(10);
+            continue;
+        }
+
+        lastData = millis();
+        // Read as much as available to fill the buffer
+        size_t available = serialDevice->available();
+        size_t bytesToRead = (available < (fileSize - bytesRead)) ? available : (fileSize - bytesRead);
+
+        size_t chunkRead = serialDevice->readBytes((char*)(buf + bytesRead), bytesToRead);
+        bytesRead += chunkRead;
+    }
+
+    *outSize = bytesRead;
+    return buf;
+}
+
+bool getFsStorageFromPath(FS *&fs, String &filepath) {
+    if (filepath.startsWith("/sd/")) {
+        if (!setupSdCard()) return false;
+        fs = &SD;
+        filepath = filepath.substring(3); // becomes '/' + rest
+        if (filepath == "") filepath = "/";
+        return true;
+    } else if (filepath.startsWith("/littlefs/")) {
+        fs = &LittleFS;
+        filepath = filepath.substring(9);
+        if (filepath == "") filepath = "/";
+        return true;
+    }
+    // Default fallback if no valid prefix:
+    return getFsStorage(fs);
+}
+
 #endif
