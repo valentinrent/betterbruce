@@ -23,7 +23,11 @@ class FileManagerModel: ObservableObject {
     }
 
     func loadDirectory(path: String) {
-        let cleanPath = (path.hasSuffix("/") && path != "/") ? path : path + (path.isEmpty ? "" : "/")
+        var cleanPath = path
+        if cleanPath != "/" && !cleanPath.hasSuffix("/") {
+            cleanPath += "/"
+        }
+
         DispatchQueue.main.async {
             self.isLoading = true
             self.errorMessage = nil
@@ -40,15 +44,28 @@ class FileManagerModel: ObservableObject {
     // Ex: "config.conf\t701"
     //     "BruceJS\t<DIR>"
     private func parseAndSetFiles(response: String, parentPath: String) {
-        let lines = response.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        // Strip out ANSI codes
+        var cleanResponse = response
+        if let regex = try? NSRegularExpression(pattern: "\u{001B}\\[[0-9;]*[a-zA-Z]", options: .caseInsensitive) {
+            cleanResponse = regex.stringByReplacingMatches(in: response, options: [], range: NSRange(location: 0, length: response.utf16.count), withTemplate: "")
+        }
+
+        // Split and filter
+        let lines = cleanResponse.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
         var newFiles: [FileItem] = []
 
         for line in lines {
             let parts = line.components(separatedBy: "\t")
             guard parts.count >= 1 else { continue }
 
-            let name = parts[0]
+            let name = parts[0].trimmingCharacters(in: .whitespaces)
+            // Sometimes the prompt or extra characters can bleed into the line
             if name.hasPrefix("ERROR:") || name.contains("does not exist") || name.hasPrefix(">") { continue }
+            if name == "#" || name.hasPrefix("Bruce") { continue } // Ignore empty prompt-like outputs
+
 
             var isDir = false
             var size: Int64 = 0
@@ -82,7 +99,7 @@ class FileManagerModel: ObservableObject {
     }
 
     func delete(file: FileItem) {
-        isLoading = true
+        DispatchQueue.main.async { self.isLoading = true }
         let cmd = file.isDirectory ? "rmdir \"\(file.path)\"" : "rm \"\(file.path)\""
         bluetoothManager.executeCommand(cmd) { [weak self] response in
             self?.refresh() // Refresh regardless to confirm
@@ -90,7 +107,7 @@ class FileManagerModel: ObservableObject {
     }
 
     func rename(file: FileItem, to newName: String) {
-        isLoading = true
+        DispatchQueue.main.async { self.isLoading = true }
         let newPath = (currentPath.hasSuffix("/") ? currentPath : currentPath + "/") + newName
         bluetoothManager.executeCommand("storage rename \"\(file.path)\" \"\(newPath)\"") { [weak self] response in
             self?.refresh()
@@ -98,7 +115,7 @@ class FileManagerModel: ObservableObject {
     }
 
     func createDirectory(name: String) {
-        isLoading = true
+        DispatchQueue.main.async { self.isLoading = true }
         let fullPath = (currentPath.hasSuffix("/") ? currentPath : currentPath + "/") + name
         bluetoothManager.executeCommand("mkdir \"\(fullPath)\"") { [weak self] response in
             self?.refresh()
@@ -106,12 +123,13 @@ class FileManagerModel: ObservableObject {
     }
 
     func navigateUp() {
-        let parts = currentPath.split(separator: "/").filter { !$0.isEmpty }
+        var parts = currentPath.split(separator: "/").map(String.init).filter { !$0.isEmpty }
         guard parts.count > 1 else {
             loadDirectory(path: "/") // root
             return
         }
-        let newPath = "/" + parts.dropLast().joined(separator: "/") + "/"
+        parts.removeLast()
+        let newPath = "/" + parts.joined(separator: "/") + "/"
         loadDirectory(path: newPath)
     }
 
@@ -125,7 +143,7 @@ class FileManagerModel: ObservableObject {
         }
 
         let pathOnDevice = (currentPath.hasSuffix("/") ? currentPath : currentPath + "/") + fileURL.lastPathComponent
-        isLoading = true
+        DispatchQueue.main.async { self.isLoading = true }
 
         // Command requires exact size
         let cmd = "storage write \"\(pathOnDevice)\" \(data.count)"
@@ -145,7 +163,7 @@ class FileManagerModel: ObservableObject {
 
     // Download uses cat, limited to small files.
     func download(file: FileItem, to localDirectory: URL) {
-        isLoading = true
+        DispatchQueue.main.async { self.isLoading = true }
         bluetoothManager.executeCommand("cat \"\(file.path)\"") { [weak self] response in
             guard let self = self else { return }
             // Filter response (remove echo and command line)
