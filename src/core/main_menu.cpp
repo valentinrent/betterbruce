@@ -58,6 +58,28 @@ void MainMenu::begin(void) {
                      float scale = float((float)tftWidth / (float)240);
                      if (bruceConfigPins.rotation & 0b01) scale = float((float)tftHeight / (float)135);
                      obj->draw(scale);
+
+                     // Draw horizontal scrollbar for active apps
+                     int total_apps = options.size();
+                     if (total_apps > 0) {
+                         int current_index = 0;
+                         for (int j = 0; j < total_apps; ++j) {
+                             if (options[j].hovered) { current_index = j; break; }
+                         }
+
+                         int barAreaW = tftWidth - 24; // left and right margin
+                         int barX = 12;
+                         int barY = tftHeight - 14;
+                         int currentW = barAreaW / total_apps;
+                         int startX = barX + (barAreaW * current_index) / total_apps;
+                         if (current_index == total_apps - 1) {
+                             currentW = barAreaW - (startX - barX); // consume remaining cleanly
+                         }
+
+                         tft.fillRect(barX, barY - 1, barAreaW, 4, bruceConfig.bgColor); // clear track area safely
+                         tft.fillRect(startX, barY, currentW, 2, bruceConfig.priColor); // highlight active chunk
+                     }
+
 #if defined(HAS_TOUCH)
                      TouchFooter();
 #endif

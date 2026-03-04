@@ -145,7 +145,7 @@ protected:
         iconAreaW = iconAreaH;
 
         iconCenterX = tftWidth / 2;
-        iconCenterY = tftHeight / 2;
+        iconCenterY = tftHeight / 2 - 8;
 
         iconAreaX = iconCenterX - iconAreaW / 2;
         iconAreaY = iconCenterY - iconAreaH / 2;
