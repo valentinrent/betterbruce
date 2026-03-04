@@ -540,6 +540,17 @@ int loopOptions(
             }
         }
 
+        static unsigned long last_charging_check = millis();
+        if (millis() - last_charging_check > 1000) {
+            last_charging_check = millis();
+            static bool last_charging_state = isCharging();
+            bool current_charging_state = isCharging();
+            if (current_charging_state != last_charging_state) {
+                last_charging_state = current_charging_state;
+                drawStatusBar();
+            }
+        }
+
         if (redraw) {
             menuOptionType = menuType; // updates menutype to the remote controller
             menuOptionLabel = subText;

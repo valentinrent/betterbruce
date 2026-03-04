@@ -168,7 +168,7 @@ void ConfigMenu::systemMenu() {
                  bruceConfig.saveFile();
              }                                                                                                           },
             {"Startup App",                                                         [this]() { setStartupApp(); }        },
-            {"Hide/Show Apps",                                                      [this]() { mainMenu.hideAppsMenu(); }},
+            {"Active Apps",                                                         [this]() { mainMenu.hideAppsMenu(); }},
             {"Clock",                                                               [this]() { setClock(); }             },
             {"Advanced",                                                            [this]() { advancedMenu(); }         },
             {"Back",                                                                []() {}                              },

@@ -98,9 +98,9 @@ void MainMenu::hideAppsMenu() {
                         bruceConfig.disabledMenus.erase(it);
                     }
                 }
-            }, enabled});
+            }, !enabled}); // !enabled means disabled apps get `selcolor` (un-highlighted), active apps get `fgcolor` (highlighted)
         }
-        options.push_back({"Show All", [=]() { bruceConfig.disabledMenus.clear(); }, true});
+        options.push_back({"Show All", [=]() { bruceConfig.disabledMenus.clear(); }, false});
         addOptionToMainMenu();
         _loop_selected = loopOptions(options, MENU_TYPE_REGULAR, "", _loop_selected);
         bruceConfig.saveFile();

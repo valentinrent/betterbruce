@@ -1,0 +1,325 @@
+diff --git a/src/core/sd_functions.cpp b/src/core/sd_functions.cpp
+index c2375b84..83c055e0 100644
+--- a/src/core/sd_functions.cpp
++++ b/src/core/sd_functions.cpp
+@@ -849,14 +849,21 @@ String loopSD(FS &fs, bool filePicker, String allowed_ext, String rootPath) {
+                     }
+                     options.push_back({"Close Menu", [&]() { yield(); }});
+                     options.push_back({"Main Menu", [&]() { exit = true; }});
+-                    if (!filePicker) loopOptions(options);
+-                    else {
++                    if (!filePicker) {
++                        loopOptions(options);
++                        tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
++                        reload = true;
++                        redraw = true;
++                    } else if (allowed_ext == "SUB") {
++                        delay(200);
++                        txSubFile(&fs, filepath);
++                        tft.fillScreen(bruceConfig.bgColor);
++                        tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
++                        redraw = true;
++                    } else {
+                         result = filepath;
+                         break;
+                     }
+-                    tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
+-                    reload = true;
+-                    redraw = true;
+                 } else {
+                 BACK_FOLDER:
+                     if (Folder == "/") break;
+diff --git a/src/modules/ble/apple_spam.cpp b/src/modules/ble/apple_spam.cpp
+index 70b7e5d9..b001134b 100644
+--- a/src/modules/ble/apple_spam.cpp
++++ b/src/modules/ble/apple_spam.cpp
+@@ -62,183 +62,183 @@ bool isAppleSpamRunning() {
+ 
+ void stopAppleSpam() {
+     if (!apple_spam_running) return;
+-    
+-    apple_spam_running = false;
++                
++    apple_spam_runni    ng =     fal    se;
+     
+     if (pAppleAdvertising) {
+         pAppleAdvertising->stop();
+-        pAppleAdvertising = nullptr;
++        pAppleAdver    tising =     nullptr    ;
+     }
+     
+ #if defined(CONFIG_IDF_TARGET_ESP32C5)
+     esp_bt_controller_deinit();
+-#else
+-    BLEDevice::deinit();
++#e    lse
++    BLED    evice::deini    t();
+ #endif
+     
+     current_apple_payload = -1;
+ }
+ 
+ void quickAppleSpam(int payloadIndex) {
+-    if (payloadIndex < 0 || payloadIndex >= apple_payload_count) return;
++    if (payloadIndex < 0     || payloadIndex     >= apple_payload    _count) return;
+     
+     uint8_t macAddr[6];
+-    generateRandomMac(macAddr);
+-    esp_base_mac_addr_set(macAddr);
++    gene    rateRandomMac(macAdd    r);
++    esp_base_mac    _addr_set(macAddr);
+     
+-    BLEDevice::init("");
+-    BLEAdvertising* pAdv = BLEDevice::getAdvertising();
++    BLEDe    vice::init("");
++    BLEA    dvertising* pAdv = BLEDe    vice::getAdvertising();
+     
+-    BLEAdvertisementData advertisementData = BLEAdvertisementData();
+-    advertisementData.setFlags(0x06);
++    BLEAdvertisementDat    a advertisementData = BLEAdv    ertisementData();
++    advert    isementData.setFlags(0x06);
+     
+     uint8_t fullPayload[31];
+     fullPayload[0] = apple_payloads[payloadIndex].length + 1;
+     fullPayload[1] = 0xFF;
+-    memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
++    m    emcpy(&fullPayload[2], apple_pay    loads[payloadIndex].data, apple_    payloads[payloadIndex].length);
+     
+ #ifdef NIMBLE_V2_PLUS
+     advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
+ #else
+-    std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2);
+-    advertisementData.addData(payloadVector);
++    std::vector<uint8_t> payloadVector(fullPayload, f    ullPayload + apple_payloads[payloadI    ndex].length + 2);
++    advertisement    Data.addData(payloadVector);
+ #endif
+     
+     pAdv->setAdvertisementData(advertisementData);
+     pAdv->setScanResponseData(BLEAdvertisementData());
+     pAdv->setMinInterval(32);
+-    pAdv->setMaxInterval(48);
++    pAdv->setMaxInterval(48);    
+     pAdv->start();
+-    vTaskDelay(100 / portTICK_PERIOD_MS);
++    vTaskDelay(100 /     portTICK_PERIOD_MS);
+     pAdv->stop();
+-    vTaskDelay(5 / portTICK_PERIOD_MS);
++        vTaskDelay(5 / portTICK_PERIOD_MS);
+     
+ #if defined(CONFIG_IDF_TARGET_ESP32C5)
+-    esp_bt_controller_deinit();
++    esp_bt_co    ntroller_deinit();
+ #else
+-    BLEDevice::deinit();
++    BLE    Device::dein    it();
+ #endif
+ }
+ 
+-void startAppleSpamAll() {
+-    if (apple_spam_running) stopAppleSpam();
++void startAppleS    pamAll() {
++        if (apple_spam_running) stopA    ppleSpam();
+     
+-    apple_spam_running = true;
++    apple_spam_running = true    ;
+     
+-    drawMainBorderWithTitle("Spam All Apple");
++    drawMainBorderW    ithTitle("Spam All Apple")    ;
+     padprintln("");
+-    padprintln("Cycling 15 Apple payloads");
+-    padprintln("Press ESC to stop");
++        padprintln("Cycling 15 App    le payloads");
++    padprin    tln("Press ESC to stop");
+     
+-    int apple_index = 0;
++    i        nt apple_index = 0;
+     
+     while (apple_spam_running) {
+-        if (check(EscPress)) {
+-            stopAppleSpam();
+-            returnToMenu = true;
+-            break;
++                if (check(EscPress)) {
++                    stopAppleSpam();
++                    returnToMenu = true;
++                    break;
+         }
+-        
+-        displayTextLine(String(apple_payloads[apple_index].name) + " " + String(millis() / 1000) + "s");
++                
++        displayTextLine(String(apple_        payloads[apple_index].name) +         " " +         String(millis() / 1000) + "s");
+         
+         uint8_t macAddr[6];
+-        generateRandomMac(macAddr);
++                        generateRandomMac(macA        ddr);
+         esp_base_mac_addr_set(macAddr);
+         
+-        BLEDevice::init("");
+-        BLEAdvertising* pAdv = BLEDevice::getAdvertising();
++                BLEDevice::init("");
++                BLEAdvertising* pAdv = BLEDevice::getAdvertising();
+         
+-        BLEAdvertisementData advertisementData = BLEAdvertisementData();
++        BLEAdvertisemen        tData advertisementData = BLEAdve        rtisementData();
+         advertisementData.setFlags(0x06);
+         
+-        uint8_t fullPayload[31];
++        uint8_t fullPayload[31];        
+         fullPayload[0] = apple_payloads[apple_index].length + 1;
+         fullPayload[1] = 0xFF;
+-        memcpy(&fullPayload[2], apple_payloads[apple_index].data, apple_payloads[apple_index].length);
++                memcpy(&fullPayload[2], apple_payloads[apple_index].data, apple_        payloads[apple_index].length);
+         
+ #ifdef NIMBLE_V2_PLUS
+-        advertisementData.addData(fullPayload, apple_payloads[apple_index].length + 2);
++        advertisementData.addData(fullPayload,         apple_payloads[apple_index].length + 2);
+ #else
+-        std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[apple_index].length + 2);
+-        advertisementData.addData(payloadVector);
++        std::vector<uint8_t> payloadVector(fullPayload, full        Payload + apple_payloads[apple_index].length + 2);
++        advertisementData.addData(p        ayloadVector);
+ #endif
+         
+         pAdv->setAdvertisementData(advertisementData);
+-        pAdv->setScanResponseData(BLEAdvertisementData());
++        pAdv->setScanResponseD                ata(BLEAdvertisementData());
+         pAdv->setMinInterval(32);
+         pAdv->setMaxInterval(48);
+-        pAdv->start();
++        pAdv->start                ();
+         vTaskDelay(100 / portTICK_PERIOD_MS);
+         pAdv->stop();
+-        vTaskDelay(5 / portTICK_PERIOD_MS);
+-        
+-#if defined(CONFIG_IDF_TARGET_ESP32C5)
++        vTaskDelay(5     / portTICK_PERIOD_MS);
++                
++#if defined(CONFIG_IDF_TARGET_ESP3    2C5)
+         esp_bt_controller_deinit();
+ #else
+-        BLEDevice::deinit();
++        BLE    Device::deinit();
+ #endif
+         
+-        apple_index = (apple_index + 1) % apple_payload_count;
++        apple_index = (app    le_index + 1)     % apple_payload_count;
+     }
+ }
+ 
+-void startAppleSpam(int payloadIndex) {
+-    if (payloadIndex < 0 || payloadIndex >= apple_payload_count) return;
++void startAppleSpam(int pa    yloadIndex) {
++    if (payloadIndex < 0 || payloadIndex >= ap    ple_payload_        co    unt) return;
+     if (apple_spam_running) stopAppleSpam();
+     
+-    current_apple_payload = payloadIndex;
+-    apple_spam_running = true;
++    current_apple_payload = payloadI        ndex;
++    apple_spam_ru    nning = true        ;
+     
+-    drawMainBorderWithTitle(apple_payloads[payloadIndex].name);
++    drawMainBorderWithTitle(apple        _payloads[payloadIndex].name);
+     padprintln("");
+-    padprintln("Press ESC to stop");
++    padprintln        ("Press ESC to stop");
+     
+-    while (apple_spam_running) {
+-        if (check(EscPress)) {
++    while (                apple_spam_running) {
++        if (check(        EscPress)) {
+             stopAppleSpam();
+-            returnToMenu = true;
++            returnToMen        u = true;
+             break;
+         }
+-        
++                
+         uint8_t macAddr[6];
+-        generateRandomMac(macAddr);
++        gen        erateRan        domMac(macAddr);
+         esp_base_mac_addr_set(macAddr);
+         
+         BLEDevice::init("");
+-        pAppleAdvertising = BLEDevice::getAdvertising();
++        pAppl        eAdvertising = BLEDevice::getAdvertising();
+         
+-        BLEAdvertisementData advertisementData = BLEAdvertisementData();
+-        advertisementData.setFlags(0x06);
++                BLEAdvertisementData advertisementData = BLEAdvertisementData();
++        advertisementData.setFlags(0x        06);
+         
+         uint8_t fullPayload[31];
+-        fullPayload[0] = apple_payloads[payloadIndex].length + 1;
++        fullPayload[0] = a        pple_payloads[payloadIndex].length + 1;
+         fullPayload[1] = 0xFF;
+-        memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
++        memcpy(&fullPayload[2],         apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
+         
+ #ifdef NIMBLE_V2_PLUS
+-        advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
++        advertisementData.addData(fullPayload, apple_payloads[payloadIndex].leng        th + 2);
+ #else
+-        std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2);
++        std::vector<uint8_t> payloadVector(fullPayload, fullPay        load + apple_payloads[payloadIndex].length + 2);
+         advertisementData.addData(payloadVector);
+ #endif
+         
+-        pAppleAdvertising->setAdvertisementData(advertisementData);
+-        BLEAdvertisementData scanResponseData = BLEAdvertisementData();
+-        pAppleAdvertising->setScanResponseData(scanResponseData);
++                pAppleAdvertising->setAdvertisementData(advertisementData);
++        B        LEAdvertisementData scanResponseData = BLEAdvertisementData();
++        pAppleAdvertising->setSca    nResponseData(scanResp        onseData);
+         pAppleAdvertising->setMinInterval(32);
+-        pAppleAdvertising->setMaxInterval(48);
++            pAppleAd        vertising->setMaxInterval(48);
+         pAppleAdvertising->start();
+-        vTaskDelay(100 / portTICK_PERIOD_MS);
+-        pAppleAdvertising->stop();
+-        vTaskDelay(5 / portTICK_PERIOD_MS);
++        vTaskDelay(100 / port    TICK_PERIOD_MS);
++                pAppleAdvertising->stop();
++        vTaskDelay(5 / portTICK_    PERIOD_MS);
+         
+-#if defined(CONFIG_IDF_TARGET_ESP32C5)
++#if defined(    CONFIG_IDF_TARGET_ESP32C5)
+         esp_bt_controller_deinit();
+ #else
+-        BLEDevice::deinit();
++        BLEDev    ice::deinit();
+ #endif
+         
+-        displayTextLine(String(apple_payloads[payloadIndex].name) + " " + String(millis() / 1000) + "s");
++        displayTextLine(String(apple_payloads[payloadIndex].n    ame) + " " + String(millis() / 10    00) + "s");
+     }
+ }
+ 
+@@ -251,7 +251,7 @@ void appleSubMenu() {
+         startAppleSpamAll();
+     }});
+     
+-    for (int i = 0; i < apple_payload_count; i++) {
++    for (int i = 0; i < apple_pa    yload_count; i++) {
+         appleOptions.push_back({apple_payloads[i].name, [i]() {
+             startAppleSpam(i);
+         }});
+diff --git a/src/modules/rf/rf_send.cpp b/src/modules/rf/rf_send.cpp
+index 1c54785b..a81c144b 100644
+--- a/src/modules/rf/rf_send.cpp
++++ b/src/modules/rf/rf_send.cpp
+@@ -25,14 +25,7 @@ void sendCustomRF() {
+         // no need to proceed, go back
+     }
+ 
+-    while (1) {
+-        delay(200);
+-        filepath = loopSD(*fs, true, "SUB", "/BruceRF");
+-        if (filepath == "" || check(EscPress)) return; //  cancelled
+-        // else transmit the file
+-        txSubFile(fs, filepath);
+-        delay(200);
+-    }
++    loopSD(*fs, true, "SUB", "/BruceRF");
+ }
+ 
+ bool txSubFile(FS *fs, String filepath, bool hideDefaultUI) {
