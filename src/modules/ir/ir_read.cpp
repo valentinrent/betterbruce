@@ -127,8 +127,21 @@ void IrRead::loop() {
 #endif
             break;
         }
-        if (check(NextPress)) save_signal();
-        if (quickloop && button_pos == quickButtons.size()) save_device();
+        if (check(NextPress)) {
+            if (quickloop && !_read_signal) {
+                button_pos++;
+                begin();
+            } else {
+                save_signal();
+            }
+        }
+        if (quickloop && button_pos >= quickButtons.size()) {
+            if (signals_read > 0) {
+                save_device();
+            }
+            button_pos = 0; quickloop = false;
+            break;
+        }
         if (check(SelPress)) save_device();
         if (check(PrevPress)) discard_signal();
 
@@ -141,7 +154,11 @@ void IrRead::begin() {
 
     display_banner();
     if (quickloop) {
-        padprintln("Waiting for signal of button: " + String(quickButtons[button_pos]));
+        if (button_pos < quickButtons.size()) {
+            padprintln("Waiting for signal of button: " + String(quickButtons[button_pos]));
+        } else {
+            padprintln("Saving device...");
+        }
     } else {
         padprintln("Waiting for signal...");
     }
@@ -175,6 +192,8 @@ void IrRead::display_btn_options() {
     if (_read_signal) {
         padprintln("Press [PREV] to discard signal");
         padprintln("Press [NEXT] to save signal");
+    } else if (quickloop && button_pos < quickButtons.size()) {
+        padprintln("Press [NEXT] to skip button");
     }
     if (signals_read > 0) { padprintln("Press [SEL]   to save device"); }
     padprintln("Press [ESC]  to exit");
