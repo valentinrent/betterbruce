@@ -11,6 +11,7 @@
 #include "modules/rf/rf_send.h"
 #include "modules/rf/rf_spectrum.h"
 #include "modules/rf/rf_waterfall.h"
+#include "modules/rf/rf_chat.h"
 
 void RFMenu::optionsMenu() {
     options = {
@@ -18,6 +19,7 @@ void RFMenu::optionsMenu() {
 #if !defined(LITE_VERSION)
         {"Record RAW",      rf_raw_record             }, // Pablo-Ortiz-Lopez
         {"Custom SubGhz",   sendCustomRF              },
+        {"SecChat",         [=]() { rf_chat(); }       },
 #endif
         {"Spectrum",        rf_spectrum               },
 #if !defined(LITE_VERSION)
