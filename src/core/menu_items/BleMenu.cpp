@@ -4,7 +4,7 @@
 #include "core/utils.h"
 #include "modules/badusb_ble/ducky_typer.h"
 #include "modules/ble/ble_common.h"
-#include "modules/ble/ble_ninebot.h"
+#include "modules/ble/ble_airtags.h"
 #include "modules/ble/ble_spam.h"
 #include <globals.h>
 
@@ -42,7 +42,6 @@ void BleMenu::optionsMenu() {
 #endif
     options.push_back({"BLE Spam", [=]() { spamMenu(); }});
 #if !defined(LITE_VERSION)
-    options.push_back({"Ninebot", [=]() { BLENinebot(); }});
 #endif
     options.push_back({"Config", [this]() { configMenu(); }});
     addOptionToMainMenu();
