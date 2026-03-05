@@ -40,9 +40,11 @@ void BleMenu::optionsMenu() {
     options.push_back({"Bad BLE", [=]() { ducky_setup(hid_ble, true); }});
     options.push_back({"BLE Keyboard", [=]() { ducky_keyboard(hid_ble, true); }});
 #endif
-    options.push_back({"BLE Spam", [=]() { spamMenu(); }});
+    options.push_back({"Apple Spam", [=]() { startAppleSpamAll(); }});
 #if !defined(LITE_VERSION)
+    options.push_back({"AirTag Sniff/Spoof", [=]() { airtagMenu(); }});
 #endif
+    options.push_back({"Other Spam", [=]() { spamMenu(); }});
     options.push_back({"Config", [this]() { configMenu(); }});
     addOptionToMainMenu();
 

