@@ -13,4 +13,6 @@ void ibeacon(
     int ManufacturerId = 0x4C00
 );
 
-#include "apple_spam.h"
+void appleSubMenu();
+void startAppleSpamAll();
+void quickAppleSpam(int payloadIndex);

