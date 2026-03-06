@@ -23,7 +23,7 @@ TagOMatic::TagOMatic() {
 }
 
 TagOMatic::TagOMatic(RFID_State initial_state) {
-    if (initial_state == CLONE_MODE || initial_state == WRITE_MODE || initial_state == SAVE_MODE) {
+    if (initial_state == CLONE_MODE || initial_state == CLONE_FULL_MODE || initial_state == WRITE_MODE || initial_state == SAVE_MODE) {
         initial_state = READ_MODE;
     }
     _initial_state = initial_state;
@@ -79,6 +79,7 @@ void TagOMatic::loop() {
             case CHECK_MODE: check_card(); break;
             case LOAD_MODE: load_file(); break;
             case CLONE_MODE: clone_card(); break;
+            case CLONE_FULL_MODE: clone_full_card(); break;
             case CUSTOM_UID_MODE: write_custom_uid(); break;
             case WRITE_MODE: write_data(); break;
             case WRITE_NDEF_MODE: write_ndef_data(); break;
@@ -92,6 +93,7 @@ void TagOMatic::select_state() {
     options = {};
     if (_read_uid) {
         options.emplace_back("Clone UID", [this]() { set_state(CLONE_MODE); });
+        options.emplace_back("Clone Full", [this]() { set_state(CLONE_FULL_MODE); });
         options.emplace_back("Custom UID", [this]() { set_state(CUSTOM_UID_MODE); });
         options.emplace_back("Check tag", [this]() { set_state(CHECK_MODE); });
         options.emplace_back("Write data", [this]() { set_state(WRITE_MODE); });
@@ -131,6 +133,7 @@ void TagOMatic::set_state(RFID_State state) {
             padprintln("");
             break;
         case CLONE_MODE:
+        case CLONE_FULL_MODE:
             padprintln("New UID: " + _rfid->printableUID.uid);
             padprintln("SAK: " + _rfid->printableUID.sak);
             padprintln("");
@@ -157,6 +160,7 @@ void TagOMatic::display_banner() {
         case CHECK_MODE: printSubtitle("CHECK MODE"); break;
         case LOAD_MODE: printSubtitle("LOAD MODE"); break;
         case CLONE_MODE: printSubtitle("CLONE MODE"); break;
+        case CLONE_FULL_MODE: printSubtitle("CLONE FULL MODE"); break;
         case CUSTOM_UID_MODE: printSubtitle("CUSTOM UID MODE"); break;
         case ERASE_MODE: printSubtitle("ERASE MODE"); break;
         case WRITE_MODE: printSubtitle("WRITE DATA MODE"); break;
@@ -183,8 +187,27 @@ void TagOMatic::dump_card_details() {
         padprintln("PMm: " + _rfid->printableUID.sak);
         padprintln("Sys code: " + _rfid->printableUID.atqa);
     }
-    if (_rfid->pageReadStatus != RFIDInterface::SUCCESS)
+
+    // Show read progress instead of generic error
+    if (_rfid->dataPages > 0 && _rfid->totalPages > 0) {
+        padprintln("Pages: " + String(_rfid->dataPages) + "/" + String(_rfid->totalPages) + " read");
+    } else if (_rfid->pageReadStatus != RFIDInterface::SUCCESS) {
         padprintln("[!] " + _rfid->statusMessage(_rfid->pageReadStatus));
+    }
+
+    // Display parsed card data if available
+    if (_rfid->parsedCardData.length() > 0) {
+        String data = _rfid->parsedCardData;
+        while (data.length() > 0) {
+            int nl = data.indexOf('\n');
+            if (nl < 0) {
+                padprintln(data);
+                break;
+            }
+            padprintln(data.substring(0, nl));
+            data = data.substring(nl + 1);
+        }
+    }
 }
 
 void TagOMatic::dump_check_details() {
@@ -277,6 +300,21 @@ void TagOMatic::clone_card() {
         case RFIDInterface::TAG_NOT_MATCH: displayError("Tag types do not match."); break;
         case RFIDInterface::SUCCESS: displaySuccess("UID written successfully."); break;
         default: displayError("Error writing UID to tag."); break;
+    }
+
+    delayWithReturn(1000);
+    set_state(READ_MODE);
+}
+
+void TagOMatic::clone_full_card() {
+    int result = _rfid->clone_full();
+
+    switch (result) {
+        case RFIDInterface::TAG_NOT_PRESENT: return; break;
+        case RFIDInterface::NOT_IMPLEMENTED: displayError("Not supported for this module."); break;
+        case RFIDInterface::TAG_NOT_MATCH: displayError("Tag types do not match."); break;
+        case RFIDInterface::SUCCESS: displaySuccess("Full card cloned successfully."); break;
+        default: displayError("Error cloning full card."); break;
     }
 
     delayWithReturn(1000);
@@ -457,6 +495,7 @@ void TagOMatic::load_file() {
 
         options = {
             {"Clone UID",  [this]() { set_state(CLONE_MODE); }},
+            {"Clone Full", [this]() { set_state(CLONE_FULL_MODE); }},
             {"Write data", [this]() { set_state(WRITE_MODE); }},
             {"Check tag",  [this]() { set_state(CHECK_MODE); }},
         };

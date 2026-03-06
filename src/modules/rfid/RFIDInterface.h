@@ -76,6 +76,7 @@ public:
     int dataPages = 0;
     bool pageReadSuccess = false;
     int pageReadStatus = FAILURE;
+    String parsedCardData;
 
     virtual ~RFIDInterface() {} // Virtual destructor
 
@@ -89,6 +90,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////
     virtual int read(int cardBaudRate = 0) = 0; // cardBaudRate = 0 means MIFARE, 1 means FeliCa
     virtual int clone() = 0;
+    virtual int clone_full() { return NOT_IMPLEMENTED; }
     virtual int erase() = 0;
     virtual int write(int cardBaudRate = 0) = 0;
     virtual int write_ndef() = 0;

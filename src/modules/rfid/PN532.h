@@ -43,6 +43,7 @@ public:
     /////////////////////////////////////////////////////////////////////////////////////
     int read(int cardBaudRate = PN532_MIFARE_ISO14443A);
     int clone();
+    int clone_full();
     int erase();
     int write(int cardBaudRate = PN532_MIFARE_ISO14443A);
     int write_ndef();
@@ -61,6 +62,10 @@ private:
     void parse_data();
     void set_uid();
 
+    void parse_known_card_formats();
+    void load_dictionary();
+    std::vector<uint8_t*> dictionaryKeys;
+
     /////////////////////////////////////////////////////////////////////////////////////
     // PICC Helpers
     /////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +77,9 @@ private:
     int read_mifare_ultralight_data_blocks();
 
     int write_data_blocks();
+    int write_data_blocks_full();
     bool write_mifare_classic_data_block(int block, String data);
+    bool write_mifare_classic_trailer_block(int block, String data);
     bool write_mifare_ultralight_data_block(int block, String data);
 
     int read_felica_data();

@@ -47,9 +47,38 @@ bool PN532::begin() {
 
     nfc.begin();
 
+    load_dictionary();
+
     uint32_t versiondata = nfc.getFirmwareVersion();
 
     return i2c_check || versiondata;
+}
+
+void PN532::load_dictionary() {
+    FS *fs;
+    if (!getFsStorage(fs)) return;
+
+    // Clear old keys if reloading
+    for (uint8_t* k : dictionaryKeys) { free(k); }
+    dictionaryKeys.clear();
+
+    if ((*fs).exists("/BruceRFID/mf_classic_dict.nfc")) {
+        File file = (*fs).open("/BruceRFID/mf_classic_dict.nfc", FILE_READ);
+        if (!file) return;
+
+        while (file.available()) {
+            String line = file.readStringUntil('\n');
+            line.trim();
+            if (line.length() == 12) { // 6 bytes written in hex = 12 chars
+                uint8_t* key = (uint8_t*)malloc(6);
+                for (size_t i = 0; i < 12; i += 2) {
+                    key[i / 2] = strtoul(line.substring(i, i + 2).c_str(), NULL, 16);
+                }
+                dictionaryKeys.push_back(key);
+            }
+        }
+        file.close();
+    }
 }
 
 int PN532::read(int cardBaudRate) {
@@ -74,6 +103,15 @@ int PN532::read(int cardBaudRate) {
     displayInfo("Reading data blocks...");
     pageReadStatus = read_data_blocks();
     pageReadSuccess = pageReadStatus == SUCCESS;
+
+    // Always try parsing even for partial reads
+    parsedCardData = "";
+    if (dataPages > 0) {
+        pageReadSuccess = true;
+        pageReadStatus = SUCCESS;
+        parse_known_card_formats();
+    }
+
     return SUCCESS;
 }
 
@@ -113,6 +151,58 @@ int PN532::clone() {
         }
     }
     return FAILURE;
+}
+
+int PN532::clone_full() {
+    // Step 1: Write block 0 (UID / SAK / ATQA) — identical to clone()
+    if (!nfc.startPassiveTargetIDDetection()) return TAG_NOT_PRESENT;
+    if (!nfc.readDetectedPassiveTargetID()) return FAILURE;
+
+    if (nfc.targetUid.sak != uid.sak) return TAG_NOT_MATCH;
+
+    uint8_t block0[16];
+    byte bcc = 0;
+    int i;
+    for (i = 0; i < uid.size; i++) {
+        block0[i] = uid.uidByte[i];
+        bcc = bcc ^ uid.uidByte[i];
+    }
+    block0[i++] = bcc;
+    block0[i++] = uid.sak;
+    block0[i++] = uid.atqaByte[1];
+    block0[i++] = uid.atqaByte[0];
+    byte tmp = 0;
+    while (i < 16) block0[i++] = 0x62 + tmp++;
+
+    bool block0Written = false;
+    if (nfc.mifareclassic_WriteBlock0(block0)) {
+        block0Written = true;
+    } else {
+        // Backdoor failed — try direct authenticated write
+        uint8_t num = 0;
+        while ((!nfc.startPassiveTargetIDDetection() || !nfc.readDetectedPassiveTargetID()) && num++ < 5) {
+            displayTextLine("hold on...");
+            delay(10);
+        }
+        uid.size = nfc.targetUid.size;
+        for (uint8_t i = 0; i < uid.size; i++) uid.uidByte[i] = nfc.targetUid.uidByte[i];
+
+        if (authenticate_mifare_classic(0) == SUCCESS && nfc.mifareclassic_WriteDataBlock(0, block0)) {
+            block0Written = true;
+        }
+    }
+
+    if (!block0Written) return FAILURE;
+
+    // Step 2: Re-detect card, then write all remaining blocks including trailers
+    uint8_t num = 0;
+    while ((!nfc.startPassiveTargetIDDetection() || !nfc.readDetectedPassiveTargetID()) && num++ < 5) {
+        displayTextLine("Waiting for card...");
+        delay(50);
+    }
+
+    displayInfo("Writing all blocks...");
+    return write_data_blocks_full();
 }
 
 int PN532::erase() {
@@ -342,10 +432,28 @@ int PN532::read_mifare_classic_data_blocks() {
     }
 
     if (no_of_sectors) {
+        bool anySuccess = false;
         for (int8_t i = 0; i < no_of_sectors; i++) {
+            displayInfo("Reading sector " + String(i) + "/" + String(no_of_sectors) + "...");
             sectorReadStatus = read_mifare_classic_data_sector(i);
-            if (sectorReadStatus != SUCCESS) break;
+            if (sectorReadStatus == SUCCESS) {
+                anySuccess = true;
+            } else if (sectorReadStatus == TAG_NOT_PRESENT) {
+                break; // Card removed, stop entirely
+            } else {
+                // Auth failed or read error for this sector — fill with zeros and continue
+                byte firstBlock = (i < 32) ? i * 4 : 128 + (i - 32) * 16;
+                byte blocksInSector = (i < 32) ? 4 : 16;
+                for (byte b = 0; b < blocksInSector; b++) {
+                    strAllPages += "Page " + String(dataPages) + ": 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n";
+                    dataPages++;
+                }
+                // Re-detect card for next sector attempt
+                nfc.startPassiveTargetIDDetection();
+                nfc.readDetectedPassiveTargetID();
+            }
         }
+        return anySuccess ? SUCCESS : sectorReadStatus;
     }
     return sectorReadStatus;
 }
@@ -416,6 +524,21 @@ int PN532::authenticate_mifare_classic(byte block) {
         }
     }
 
+    if (!successA) {
+        int dictSize = (int)dictionaryKeys.size();
+        for (int di = 0; di < dictSize; di++) {
+            if (di % 50 == 0) {
+                displayInfo("Dict key " + String(di) + "/" + String(dictSize) + " (A)");
+            }
+            successA = nfc.mifareclassic_AuthenticateBlock(uid.uidByte, uid.size, block, 0, dictionaryKeys[di]);
+            if (successA) break;
+
+            if (!nfc.startPassiveTargetIDDetection() || !nfc.readDetectedPassiveTargetID()) {
+                return TAG_NOT_PRESENT;
+            }
+        }
+    }
+
     for (auto key : keys) {
         successB = nfc.mifareclassic_AuthenticateBlock(uid.uidByte, uid.size, block, 1, key);
         if (successB) break;
@@ -442,7 +565,22 @@ int PN532::authenticate_mifare_classic(byte block) {
         }
     }
 
-    return (successA && successB) ? SUCCESS : TAG_AUTH_ERROR;
+    if (!successB) {
+        int dictSize = (int)dictionaryKeys.size();
+        for (int di = 0; di < dictSize; di++) {
+            if (di % 50 == 0) {
+                displayInfo("Dict key " + String(di) + "/" + String(dictSize) + " (B)");
+            }
+            successB = nfc.mifareclassic_AuthenticateBlock(uid.uidByte, uid.size, block, 1, dictionaryKeys[di]);
+            if (successB) break;
+
+            if (!nfc.startPassiveTargetIDDetection() || !nfc.readDetectedPassiveTargetID()) {
+                return TAG_NOT_PRESENT;
+            }
+        }
+    }
+
+    return (successA || successB) ? SUCCESS : TAG_AUTH_ERROR;
 }
 
 int PN532::read_mifare_ultralight_data_blocks() {
@@ -563,6 +701,63 @@ int PN532::write_data_blocks() {
     return SUCCESS;
 }
 
+// ---------------------------------------------------------------------------
+// write_data_blocks_full — like write_data_blocks() but also writes sector
+// trailers (the last block of every sector) so a full card clone is possible.
+// Block 0 is still skipped (already written by clone_full).
+// ---------------------------------------------------------------------------
+int PN532::write_data_blocks_full() {
+    // Only supported for MIFARE Classic
+    if (uid.sak != PICC_TYPE_MIFARE_MINI &&
+        uid.sak != PICC_TYPE_MIFARE_1K   &&
+        uid.sak != PICC_TYPE_MIFARE_4K) {
+        // Fall back to normal write for other card types
+        return write_data_blocks();
+    }
+
+    String allPagesSnapshot = strAllPages; // preserve original
+    String pageLine;
+    String strBytes;
+    int lineBreakIndex;
+    int pageIndex;
+    bool blockWriteSuccess;
+    int totalSize = strAllPages.length();
+
+    while (strAllPages.length() > 0) {
+        lineBreakIndex = strAllPages.indexOf("\n");
+        if (lineBreakIndex < 0) break;
+
+        pageLine   = strAllPages.substring(0, lineBreakIndex);
+        strAllPages = strAllPages.substring(lineBreakIndex + 1);
+
+        pageIndex = pageLine.substring(5, pageLine.indexOf(":")).toInt();
+        strBytes  = pageLine.substring(pageLine.indexOf(":") + 1);
+        strBytes.trim();
+
+        // Always skip block 0 — already written by clone_full
+        if (pageIndex == 0) continue;
+
+        // Determine whether this block is a sector trailer
+        bool isTrailer = ((pageIndex + 1) % 4 == 0);
+
+        if (isTrailer) {
+            blockWriteSuccess = write_mifare_classic_trailer_block(pageIndex, strBytes);
+        } else {
+            blockWriteSuccess = write_mifare_classic_data_block(pageIndex, strBytes);
+        }
+
+        if (!blockWriteSuccess) {
+            strAllPages = allPagesSnapshot; // restore
+            return FAILURE;
+        }
+
+        progressHandler(totalSize - strAllPages.length(), totalSize, "Cloning all blocks...");
+    }
+
+    strAllPages = allPagesSnapshot; // restore for subsequent operations
+    return SUCCESS;
+}
+
 bool PN532::write_mifare_classic_data_block(int block, String data) {
     data.replace(" ", "");
     byte size = data.length() / 2;
@@ -574,6 +769,24 @@ bool PN532::write_mifare_classic_data_block(int block, String data) {
         buffer[i / 2] = strtoul(data.substring(i, i + 2).c_str(), NULL, 16);
     }
 
+    if (authenticate_mifare_classic(block) != SUCCESS) return false;
+
+    return nfc.mifareclassic_WriteDataBlock(block, buffer);
+}
+
+// Writes a MIFARE Classic sector trailer block (key A + access bits + key B).
+// Authentication uses the KEY stored in the dump itself (bytes 0-5 = key A).
+bool PN532::write_mifare_classic_trailer_block(int block, String data) {
+    data.replace(" ", "");
+    byte size = data.length() / 2;
+    if (size != 16) return false;
+
+    byte buffer[16];
+    for (size_t i = 0; i < data.length(); i += 2) {
+        buffer[i / 2] = strtoul(data.substring(i, i + 2).c_str(), NULL, 16);
+    }
+
+    // Authenticate with existing key before overwriting the trailer
     if (authenticate_mifare_classic(block) != SUCCESS) return false;
 
     return nfc.mifareclassic_WriteDataBlock(block, buffer);
@@ -678,4 +891,97 @@ int PN532::write_ndef_blocks() {
     }
 
     return SUCCESS;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: extract 16 bytes from a "Page N: XX XX XX ... XX" line
+// ---------------------------------------------------------------------------
+static bool getBlockBytes(const String& allPages, int blockNum, uint8_t out[16]) {
+    String prefix = "Page " + String(blockNum) + ": ";
+    int idx = allPages.indexOf(prefix);
+    if (idx < 0) return false;
+    int start = idx + prefix.length();
+    int eol = allPages.indexOf('\n', start);
+    String hex = (eol > 0) ? allPages.substring(start, eol) : allPages.substring(start);
+    hex.trim();
+    hex.replace(" ", "");
+    if (hex.length() < 32) return false; // need 16 bytes = 32 hex chars
+    for (int i = 0; i < 16; i++) {
+        out[i] = strtoul(hex.substring(i * 2, i * 2 + 2).c_str(), NULL, 16);
+    }
+    return true;
+}
+
+void PN532::parse_known_card_formats() {
+    // Only parse MIFARE Classic for now
+    if (uid.sak != PICC_TYPE_MIFARE_MINI &&
+        uid.sak != PICC_TYPE_MIFARE_1K &&
+        uid.sak != PICC_TYPE_MIFARE_4K) return;
+
+    uint8_t block[16];
+
+    // --- Aime card detection ---
+    // Block 1 starts with "SBSD" (0x53 0x42 0x53 0x44)
+    if (getBlockBytes(strAllPages, 1, block)) {
+        if (block[0] == 'S' && block[1] == 'B' && block[2] == 'S' && block[3] == 'D') {
+            // Access code in block 2, bytes 6-15
+            uint8_t block2[16];
+            if (getBlockBytes(strAllPages, 2, block2)) {
+                char code[30];
+                snprintf(code, sizeof(code),
+                    "%02x%02x %02x%02x %02x%02x %02x%02x %02x%02x",
+                    block2[6], block2[7], block2[8], block2[9], block2[10],
+                    block2[11], block2[12], block2[13], block2[14], block2[15]);
+                parsedCardData += "Aime Card\n";
+                parsedCardData += "Access Code: " + String(code) + "\n";
+            }
+        }
+    }
+
+    // --- Skylanders detection ---
+    // Block 1 bytes 0-1 are typically the Skylander ID
+    if (getBlockBytes(strAllPages, 1, block)) {
+        // Skylanders always use key A0A1A2A3A4A5 and have specific ATQA
+        if (uid.atqaByte[0] == 0x44 && uid.atqaByte[1] == 0x00 && uid.sak == PICC_TYPE_MIFARE_1K) {
+            uint16_t skylander_id = (block[1] << 8) | block[0];
+            uint16_t skylander_var = (block[3] << 8) | block[2];
+            if (skylander_id != 0 && skylander_id != 0xFFFF) {
+                parsedCardData += "Skylanders Figure\n";
+                parsedCardData += "ID: " + String(skylander_id) + "\n";
+                parsedCardData += "Variant: " + String(skylander_var) + "\n";
+            }
+        }
+    }
+
+    // --- Disney Infinity detection ---
+    // Block 4, bytes 0-1 = 0x0F 0x01
+    if (getBlockBytes(strAllPages, 4, block)) {
+        if (block[0] == 0x0F && block[1] == 0x01) {
+            uint32_t figure_num = ((uint32_t)block[4] << 24) | ((uint32_t)block[5] << 16) |
+                                  ((uint32_t)block[6] << 8) | block[7];
+            parsedCardData += "Disney Infinity Figure\n";
+            parsedCardData += "Figure #: " + String(figure_num) + "\n";
+        }
+    }
+
+    // --- Generic sector key summary ---
+    // Show which sectors were read (useful feedback)
+    int sectorsRead = 0;
+    int sectorsTotal = 0;
+    switch (uid.sak) {
+        case PICC_TYPE_MIFARE_MINI: sectorsTotal = 5; break;
+        case PICC_TYPE_MIFARE_1K:   sectorsTotal = 16; break;
+        case PICC_TYPE_MIFARE_4K:   sectorsTotal = 40; break;
+    }
+    for (int s = 0; s < sectorsTotal; s++) {
+        int trailerBlock = (s < 32) ? (s * 4 + 3) : (128 + (s - 32) * 16 + 15);
+        uint8_t trailer[16];
+        if (getBlockBytes(strAllPages, trailerBlock, trailer)) sectorsRead++;
+    }
+    if (sectorsTotal > 0) {
+        parsedCardData += "Sectors: " + String(sectorsRead) + "/" + String(sectorsTotal) + " read\n";
+    }
+    if (!dictionaryKeys.empty()) {
+        parsedCardData += "Dict keys loaded: " + String((int)dictionaryKeys.size()) + "\n";
+    }
 }

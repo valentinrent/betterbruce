@@ -19,6 +19,7 @@ public:
         SCAN_MODE,
         CHECK_MODE,
         CLONE_MODE,
+        CLONE_FULL_MODE,
         CUSTOM_UID_MODE,
         WRITE_MODE,
         WRITE_NDEF_MODE,
@@ -90,6 +91,7 @@ private:
     void check_card();
     void write_custom_uid();
     void clone_card();
+    void clone_full_card();
     void erase_card();
     void write_data();
     void write_ndef_data();
