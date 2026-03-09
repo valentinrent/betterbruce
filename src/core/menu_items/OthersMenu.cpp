@@ -10,7 +10,7 @@
 #include "modules/others/mic.h"
 #include "modules/others/qrcode_menu.h"
 #include "modules/others/tururururu.h"
-// Removed: #include "modules/others/timer.h"
+#include "modules/u2f_key/u2f_app.h"
 
 void OthersMenu::optionsMenu() {
     int _loop_selected = 0;
@@ -35,8 +35,7 @@ void OthersMenu::optionsMenu() {
 #ifndef LITE_VERSION
         {"iButton",      setup_ibutton                },
 #endif
-
-        // Timer removed - moved to another "Clock"
+        {"U2F Key",      u2f_key_setup                },
     };
 
     addOptionToMainMenu();
