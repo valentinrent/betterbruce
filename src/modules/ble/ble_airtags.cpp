@@ -82,7 +82,7 @@ void airtagScan() {
 #else
     pAirTagScan->setAdvertisedDeviceCallbacks(new AirTagCallbacks());
 #endif
-    pAirTagScan->setActiveScan(true);
+    pAirTagScan->setActiveScan(false);
     pAirTagScan->setInterval(100);
     pAirTagScan->setWindow(99);
 
